@@ -1,0 +1,49 @@
+A. Ten Vegetable Types
+#	Plant Type	Category	Specific Cause	Key Contributing Factors
+1	Tomato	Fungal	Phytophthora infestans (Late Blight)	High humidity, overhead irrigation, poor air circulation, cool nights.
+1	Tomato	Fungal	Fusarium oxysporum (Fusarium Wilt)	Infested soil, warm temperatures, poor crop rotation.
+1	Tomato	Bacterial	Ralstonia solanacearum (Bacterial Wilt)	Wounds in roots, contaminated soil/water, high temperatures.
+1	Tomato	Viral	Tomato Mosaic Virus (ToMV)	Contaminated tools, hands, or seeds; mechanical transmission.
+2	Cucumber	Fungal	Podosphaera xanthii (Powdery Mildew)	Moderate temps with high humidity, poor air flow.
+2	Cucumber	Fungal	Pseudoperonospora cubensis (Downy Mildew)	Leaf wetness, high humidity, cool nights.
+2	Cucumber	Viral	Cucumber Mosaic Virus (CMV)	Aphid vectors, infected weeds.
+3	Pepper	Fungal	Botrytis cinerea (Gray Mold)	High density, wounds, prolonged leaf wetness, cool damp conditions.
+3	Pepper	Physiological	Blossom End Rot	Calcium deficiency triggered by irregular watering.
+3	Pepper	Bacterial	Xanthomonas spp. (Bacterial Spot)	Warm, wet weather; overhead irrigation; infected seeds.
+4	Lettuce	Fungal	Bremia lactucae (Downy Mildew)	Free moisture on leaves, cool humid conditions.
+4	Lettuce	Fungal	Sclerotinia sclerotiorum (Lettuce Drop)	Dense canopy, wet soil, cool moist weather.
+5	Eggplant	Fungal	Phomopsis vexans (Phomopsis Blight)	Warm, rainy weather; infected seeds or plant debris.
+5	Eggplant	Fungal/Bacterial	Verticillium/Fusarium Wilts	Infested soil, poor rotation, warm conditions.
+6	Zucchini	Viral	Zucchini Yellow Mosaic Virus (ZYMV)	Aphid vectors, presence of infected hosts.
+6	Zucchini	Fungal	Podosphaera xanthii (Powdery Mildew)	Same as cucumber; dense foliage.
+7	Beans	Fungal	Uromyces appendiculatus (Rust)	Moderate temps with heavy dew or rain.
+7	Beans	Fungal	Colletotrichum lindemuthianum (Anthracnose)	Cool, wet weather; infected seeds.
+8	Carrot	Fungal	Alternaria dauci (Leaf Blight)	Warm temperatures with prolonged leaf wetness.
+8	Carrot	Oomycete	Pythium spp. (Damping-off)	Overwatering, poor drainage, cool wet soil.
+9	Onion	Fungal	Botrytis spp. (Neck Rot)	Inadequate curing, wet conditions at harvest.
+9	Onion	Fungal	Peronospora destructor (Downy Mildew)	Cool, humid weather with dew.
+10	Potato	Fungal/Oomycete	Phytophthora infestans (Late Blight)	Same as tomato; the classic cause of Irish Potato Famine.
+10	Potato	Bacterial	Pectobacterium & Dickeya spp. (Soft Rot)	Anaerobic, waterlogged conditions; mechanical damage.
+
+B. Ten Fruit Types
+#	Plant Type	Category	Specific Cause	Key Contributing Factors
+1	Apple	Fungal	Venturia inaequalis (Apple Scab)	Spring rainfall, leaf wetness, moderate temps.
+1	Apple	Fungal	Podospharea leucotricha (Powdery Mildew)	High humidity, moderate temps, poor air circulation.
+2	Grape	Fungal	Plasmopara viticola (Downy Mildew)	Rain, high humidity, temps above 52°F (11°C).
+2	Grape	Fungal	Erysiphe necator (Powdery Mildew)	Warm, humid (not rainy) conditions; shaded canopies.
+3	Citrus	Bacterial	Candidatus Liberibacter asiaticus (Citrus Greening/Huanglongbing)	Vector: Asian Citrus Psyllid. No cure.
+3	Citrus	Fungal	Phytophthora spp. (Root & Foot Rot)	Waterlogged, poorly drained soils.
+4	Stone Fruits (Peach, Plum)	Fungal	Taphrina deformans (Peach Leaf Curl)	Cool, wet spring weather as buds swell.
+4	Stone Fruits	Fungal	Monilinia fructicola (Brown Rot)	Warm, wet weather near harvest; insect/wound entry.
+5	Strawberry	Fungal	Botrytis cinerea (Gray Mold)	Crowded plants, rain/overhead irrigation, cool temps.
+5	Strawberry	Fungal	Phytophthora cactorum (Leather Rot)	Fruit contact with wet, contaminated soil.
+6	Banana	Fungal	Fusarium oxysporum f. sp. cubense (Fusarium Wilt TR4)	Infested soil/planting material; spreads via water/tools.
+6	Banana	Fungal	Mycosphaerella fijiensis (Black Sigatoka)	High humidity, leaf wetness, warm temps.
+7	Mango	Fungal	Colletotrichum gloeosporioides (Anthracnose)	Wet, humid conditions during flowering/fruiting.
+7	Mango	Bacterial	Xanthomonas citri pv. mangiferaeindicae (Bacterial Black Spot)	Wind-driven rain, wounds, high humidity.
+8	Olive	Bacterial	Xylella fastidiosa	Vector: Spittlebugs; causes Olive Quick Decline Syndrome.
+8	Olive	Fungal	Spilocaea oleagina (Peacock Spot)	Autumn/winter rains, high humidity.
+9	Papaya	Viral	Papaya Ringspot Virus (PRSV)	Vector: Aphids; major global threat.
+9	Papaya	Fungal	Phytophthora palmivora (Stem Rot & Fruit Rot)	Heavy rain, poor drainage, fruit contact with soil.
+10	Avocado	Oomycete	Phytophthora cinnamomi (Root Rot)	Poorly drained, heavy soils; over-irrigation.
+10	Avocado	Fungal	Colletotrichum gloeosporioides (Anthracnose)	Wet weather during fruit development, post-harvest.
