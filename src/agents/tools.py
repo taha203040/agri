@@ -4,12 +4,9 @@
 
 from langchain_core.tools import tool
 
-@tool('cause_disease')
+@tool('cause_disease', description='Provide information about the causes of diseases of plants and discover solutions')
 def srch_disease ()->str:
-    """
-    search raw disease information
-    """
-    with open('/data/raw/diseases' , 'r',encoding='utf-8') as f :
+    with open('data/raw/diseases/data.txt' ,'r',encoding='utf-8') as f :
         return f.read()
     # toolss = create_retriever_tool(retriever=)
 
