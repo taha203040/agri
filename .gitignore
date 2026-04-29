@@ -36,3 +36,5 @@ Thumbs.db
 *.swo
 *~
 .gitignore
+*.pt
+*.png
