@@ -8,8 +8,8 @@ import {
   ChatThread,
   Citation,
   initialThreads,
-  streamResponse,
 } from "@/lib/mockData";
+import { streamChatResponse } from "@/lib/api";
 import { MessageBubble } from "@/components/MessageBubble";
 import { ThinkingIndicator } from "@/components/ThinkingIndicator";
 import { CitationsPanel } from "@/components/Citations";
@@ -70,10 +70,9 @@ export function ChatInterface() {
         ],
       }));
 
-      streamResponse(
-        text,
-        hasImage,
-        (token) => {
+      streamChatResponse(
+        text || "What's wrong with this plant?",
+        (token: string) => {
           setThreads((prev) =>
             prev.map((t) =>
               t.id !== activeId
@@ -87,7 +86,7 @@ export function ChatInterface() {
             ),
           );
         },
-        (citations) => {
+        (citations: Citation[]) => {
           setStreamingId(null);
           setThreads((prev) =>
             prev.map((t) =>
