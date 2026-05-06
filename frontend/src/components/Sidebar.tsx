@@ -19,7 +19,7 @@ export function Sidebar() {
         </div>
         <div className="leading-tight">
           <div className="font-semibold tracking-tight">AgriSense AI</div>
-          <div className="text-[11px] text-muted-foreground">Harvest Intelligence</div>
+          {/* <div className="text-[11px] text-muted-foreground">Harvest Intelligence</div> */}
         </div>
       </Link>
 
