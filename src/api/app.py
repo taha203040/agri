@@ -6,7 +6,7 @@ from src.agents.agriculture_agent import agriculture_agent
 import json
 import logging
 import re
-
+from fastapi.middleware.cors import CORSMiddleware
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -14,6 +14,23 @@ app = FastAPI(
     title="Agriculture API",
     description="API for agriculture-related queries including soil and disease information",
     version="1.0.0"
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+        "http://localhost:3000",  # React default
+        "http://127.0.0.1:3000",
+        "http://localhost:5173",  # Vite default
+        "http://127.0.0.1:5173",
+        # Add your production domains here
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"],  # Expose all headers to client
+    max_age=3600,  # Cache preflight requests for 1 hour
 )
 
 class QuestionRequest(BaseModel):
