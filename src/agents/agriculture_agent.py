@@ -1,8 +1,11 @@
-# # src/agent/agriculture_agent.py
 # from langchain.agents import create_agent
 # from src.retrieval.retriever import retriever_tool, diseases_tool
 # from dotenv import load_dotenv
 # import json
+# import logging
+
+# logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
 
 # load_dotenv()
 
@@ -17,10 +20,39 @@
 #         )
     
 #     def stream(self, question_input):
-#         """Stream agent responses"""
-#         for chunk in self.agent.stream(question_input):
-#             yield chunk
+#         """Stream agent responses with proper chunk formatting"""
+#         try:
+#             if hasattr(self.agent, 'stream'):
+#                 for chunk in self.agent.stream(question_input):
+#                     yield self._format_chunk(chunk)
+#             else:
+#                 logger.warning("Agent doesn't support streaming, simulating...")
+#                 yield from self._simulate_stream(question_input)
+#         except Exception as e:
+#             logger.error(f"Stream error: {e}")
+#             yield {"type": "error", "error": str(e)}
     
+#     def _format_chunk(self, chunk):
+#         """Format a chunk into a standard dict"""
+#         if isinstance(chunk, dict):
+#             return chunk
+#         if hasattr(chunk, 'dict'):
+#             return chunk.dict()
+#         if hasattr(chunk, 'content'):
+#             return {"type": "token", "content": chunk.content}
+#         return {"type": "token", "content": str(chunk)}
+
+#     def _simulate_stream(self, question_input):
+#         """Simulate streaming by splitting the response"""
+#         result = self.agent.invoke(question_input)
+#         for msg in result.get('messages', []):
+#             if getattr(msg, 'type', None) == 'ai' or msg.__class__.__name__ == 'AIMessage':
+#                 content = msg.content if hasattr(msg, 'content') else str(msg)
+#                 words = content.split()
+#                 for i, word in enumerate(words):
+#                     yield {"type": "token", "content": word + (" " if i < len(words)-1 else "")}
+#                 break
+#         yield {"type": "done"}
 #     def invoke(self, question_input):
 #         """Invoke agent without streaming"""
 #         return self.agent.invoke(question_input)
@@ -33,187 +65,153 @@
 #                       if msg.__class__.__name__ == 'AIMessage']
         
 #         for i, msg in enumerate(ai_messages, 1):
-#             print(f"AI message {i}: {msg}")
+#             logger.info(f"AI message {i}: {msg}")
         
 #         return ai_messages
 
 # # Create a singleton instance for reuse
 # agriculture_agent = AgricultureAgent()
-# src/agents/agriculture_agent.py
-from langchain.agents import create_agent
-from src.retrieval.retriever import retriever_tool, diseases_tool
-from dotenv import load_dotenv
-import json
-import logging
+# import logging
+# from langchain.agents import create_agent
+# from langgraph.graph import StateGraph, MessagesState, START
+# from src.config.config import settings
+# from src.memory.conversation_memory import get_checkpointer
+# from src.retrieval.retriever import retriever_tool, diseases_tool
 
-logging.basicConfig(level=logging.INFO)
+# logger = logging.getLogger(__name__)
+
+# SYSTEM_PROMPT = (
+#     "You are a helpful assistant specialized in agriculture. "
+#     "Use the soil_retriever tool for soil-related questions "
+#     "and the disease_retriever tool for plant disease questions."
+# )
+
+# TOOLS = [retriever_tool, diseases_tool]
+
+
+# def _build_graph(checkpointer=None):
+#     """
+#     Build the LangGraph agent graph.
+#     Pass a checkpointer to enable memory persistence.
+#     """
+#     base_agent = create_agent(
+#         model=settings.model_name,
+#         tools=TOOLS,
+#         system_prompt=SYSTEM_PROMPT,
+#     )
+
+#     async def call_model(state: MessagesState):
+#         response = await base_agent.ainvoke(state)
+#         return {"messages": response["messages"]}
+
+#     builder = StateGraph(MessagesState)
+#     builder.add_node("call_model", call_model)
+#     builder.add_edge(START, "call_model")
+
+#     return builder.compile(checkpointer=checkpointer)
+
+
+# def _make_config(thread_id: str) -> dict:
+#     return {"configurable": {"thread_id": thread_id}}
+
+
+# # ── Public API ──────────────────────────────────────────────────────────────
+
+# async def stream_response(message: str, thread_id: str = settings.default_thread_id):
+#     """
+#     Async generator — yields clean text chunks with memory.
+#     Usage:
+#         async for chunk in stream_response("How to treat rust?", thread_id="user-42"):
+#             print(chunk)
+#     """
+#     async with get_checkpointer() as checkpointer:
+#         graph = _build_graph(checkpointer)
+#         config = _make_config(thread_id)
+#         user_input = {"messages": [{"role": "user", "content": message}]}
+
+#         async for chunk in graph.astream(user_input, config=config, stream_mode="values"):
+#             last = chunk["messages"][-1]
+#             content = last.content if hasattr(last, "content") else str(last)
+#             if content:
+#                 yield content
+
+
+# async def invoke_response(message: str, thread_id: str = settings.default_thread_id) -> str:
+#     """
+#     Single-shot async call — returns the final AI response as a string.
+#     """
+#     async with get_checkpointer() as checkpointer:
+#         graph = _build_graph(checkpointer)
+#         config = _make_config(thread_id)
+#         user_input = {"messages": [{"role": "user", "content": message}]}
+
+#         result = await graph.ainvoke(user_input, config=config)
+#         ai_messages = [
+#             m.content for m in result["messages"]
+#             if m.__class__.__name__ == "AIMessage"
+#         ]
+#         return ai_messages[-1] if ai_messages else "No response generated."
+# src/agents/agriculture_agent.py
+
+import logging
+from langchain.agents import create_agent
+from src.config.config import settings
+from src.memory.conversation_memory import get_checkpointer
+from src.retrieval.retriever import retriever_tool, diseases_tool
+from langgraph.prebuilt import create_react_agent  # ← not from langchain
+
 logger = logging.getLogger(__name__)
 
-load_dotenv()
-
-class AgricultureAgent:
-    """Agriculture Agent wrapper for handling farming-related queries"""
-    
-    def __init__(self):
-        self.agent = create_agent(
-            model='deepseek-chat',
-            tools=[retriever_tool, diseases_tool],
-            system_prompt='You are a helpful assistant specialized in the agriculture field. Answer just the questions related to soil samples using the soil_retriever tool and diseases using the disease_retriever tool.'
-        )
-    
-    def stream(self, question_input):
-        """Stream agent responses with proper chunk formatting"""
-        try:
-            # Check if the agent has a stream method
-            if hasattr(self.agent, 'stream'):
-                for chunk in self.agent.stream(question_input):
-                    logger.info(f"Raw chunk from agent: {chunk}")
-                    
-                    # Handle different chunk formats
-                    if isinstance(chunk, dict):
-                        # If it's already a dict, yield as is
-                        yield chunk
-                    elif hasattr(chunk, 'dict'):
-                        # If it's a Pydantic model
-                        yield chunk.dict()
-                    elif hasattr(chunk, 'content'):
-                        # If it's a message object
-                        yield {"type": "token", "content": chunk.content}
-                    else:
-                        # Unknown format, try to convert to string
-                        yield {"type": "token", "content": str(chunk)}
-            else:
-                # If agent doesn't support streaming, simulate it
-                logger.warning("Agent doesn't support streaming, simulating...")
-                result = self.agent.invoke(question_input)
-                
-                # Extract content from result
-                messages = result.get('messages', [])
-                if messages:
-                    # Find the AI message
-                    for msg in messages:
-                        if hasattr(msg, 'type') and msg.type == 'ai' or hasattr(msg, '__class__') and msg.__class__.__name__ == 'AIMessage':
-                            content = msg.content if hasattr(msg, 'content') else str(msg)
-                            
-                            # Stream word by word
-                            words = content.split()
-                            for i, word in enumerate(words):
-                                yield {
-                                    "type": "token", 
-                                    "content": word + (" " if i < len(words)-1 else "")
-                                }
-                            break
-                
-                yield {"type": "done"}
-                
-        except Exception as e:
-            logger.error(f"Stream error: {e}")
-            yield {"type": "error", "error": str(e)}
-    
-    def invoke(self, question_input):
-        """Invoke agent without streaming"""
-        return self.agent.invoke(question_input)
-    
-    def run(self, question: str):
-        """Run agent and return AI messages"""
-        question_input = {'messages': [{'role': 'user', 'content': question}]}
-        answer = self.agent.invoke(question_input)
-        ai_messages = [msg.content for msg in answer['messages'] 
-                      if msg.__class__.__name__ == 'AIMessage']
-        
-        for i, msg in enumerate(ai_messages, 1):
-            logger.info(f"AI message {i}: {msg}")
-        
-        return ai_messages
-
-# Create a singleton instance for reuse
-agriculture_agent = AgricultureAgent()
+TOOLS = [retriever_tool, diseases_tool]
+SYSTEM_PROMPT = (
+    "You are a helpful assistant specialized in agriculture. "
+    "Use the retriever_tool tool for soil-related questions "
+    "and the diseases_tool tool for plant disease questions."
+)
 
 
+async def _get_graph(checkpointer=None):
+    graph = create_react_agent(
+        model=settings.model_name,
+        tools=TOOLS,
+        prompt=SYSTEM_PROMPT,
+        checkpointer=checkpointer,  # ← accepted natively here
+    )
+    return graph
+def _make_config(thread_id: str) -> dict:
+    return {"configurable": {"thread_id": thread_id}}
 
 
+# ── Public API ────────────────────────────────────────────────────────────────
+
+async def stream_response(message: str, thread_id: str = settings.default_thread_id):
+    """
+    Async generator — yields clean text chunks with memory and tools.
+    """
+    async with get_checkpointer() as checkpointer: 
+        graph = await _get_graph(checkpointer)
+        config = _make_config(thread_id)
+        user_input = {"messages": [{"role": "user", "content": message}]}
+
+        async for chunk in graph.astream(user_input, config=config, stream_mode="values"):
+            last = chunk["messages"][-1]
+            # Only yield final AI responses, skip tool call messages
+            if last.__class__.__name__ == "AIMessage" and last.content:
+                yield last.content
 
 
+async def invoke_response(message: str, thread_id: str = settings.default_thread_id) -> str:
+    """
+    Single-shot async call — returns the final AI response as a string.
+    """
+    async with get_checkpointer() as checkpointer:
+        graph = await _get_graph(checkpointer)
+        config = _make_config(thread_id)
+        user_input = {"messages": [{"role": "user", "content": message}]}
 
-
-
-
-
-# from langchain.agents import   create_agent
-# from src.retrieval.retriever import retriever_tool , diseases_tool
-# from dotenv import load_dotenv
-# load_dotenv()
-# agent = create_agent(    
-#     model='deepseek-chat',
-#     tools=[retriever_tool , diseases_tool],
-    
-#     system_prompt='you are helpful assistant specialzed in agriculture field answer just the questions that related with soil sample using the soil_retriever tool and the diseases using disease_retriever'
-# )
-# # question = {'messages': [{'role': 'user', 'content': 'how soil sample help to grow planets and increase the amount of the farming ?'}]}
-# question = {'messages': [{'role': 'user', 'content': 'what most diseases that tomato get it?'}]}
-# answer = agent.invoke(question)
-# # print('answr',answer['messages'].content)
-# # print('answer',answer['messages'].content)
-# ai_messages = [msg.content for msg in answer['messages'] if msg.__class__.__name__ == 'AIMessage']
-# for i, msg in enumerate(ai_messages, 1):
-#     print(f"AI message {i}: {msg}")
-
-# # from ultralyticsplus import YOLO, render_result
-
-# # import torch
-# # from PIL import Image
-# # from torchvision import transforms
-# # import requests
-# # from transformers import AutoModelForImageClassification
-
-# # class AgricultureAgent:
-# #     def __init__(self):
-# #         self.model_name = "linkanjarad/mobilenet_v2_1.0_224-plant-disease-identification"
-# #         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        
-# #         # Load model
-# #         self.model = AutoModelForImageClassification.from_pretrained(self.model_name)
-# #         self.model.to(self.device)
-# #         self.model.eval()
-        
-# #         # Manual preprocessing (since auto processor fails)
-# #         self.transform = transforms.Compose([
-# #             transforms.Resize((224, 224)),
-# #             transforms.ToTensor(),
-# #             transforms.Normalize(mean=[0.485, 0.456, 0.406], 
-# #                                std=[0.229, 0.224, 0.225])
-# #         ])
-    
-# #     def predict(self, image_path):
-# #         # Load and preprocess image
-# #         image = Image.open(image_path).convert('RGB')
-# #         input_tensor = self.transform(image).unsqueeze(0).to(self.device)
-        
-# #         # Predict
-# #         with torch.no_grad():
-# #             outputs = self.model(input_tensor)
-# #             probabilities = torch.nn.functional.softmax(outputs.logits, dim=1)
-# #             confidence, predicted_idx = torch.max(probabilities, 1)
-        
-# #         # Get label
-# #         predicted_class = self.model.config.id2label[predicted_idx.item()]
-# #         confidence_score = confidence.item()
-        
-# #         return {
-# #             "disease": predicted_class,
-# #             "confidence": confidence_score,
-# #             "all_predictions": [
-# #                 {
-# #                     "label": self.model.config.id2label[i],
-# #                     "score": probabilities[0][i].item()
-# #                 }
-# #                 for i in range(len(probabilities[0]))
-# #             ]
-# #         }
-
-# # # Usage
-# # if __name__ == "__main__":
-# #     agent = AgricultureAgent()
-# #     result = agent.predict("./image.png")
-# #     print(f"Disease: {result['disease']}")
-# #     print(f"Confidence: {result['confidence']:.2%}")
+        result = await graph.ainvoke(user_input, config=config)
+        ai_messages = [
+            m.content for m in result["messages"]
+            if m.__class__.__name__ == "AIMessage" and m.content
+        ]
+        return ai_messages[-1] if ai_messages else "No response generated."
