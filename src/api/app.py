@@ -188,11 +188,12 @@
 #     )
 import json
 import logging
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query , UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-
+import os
+from src.multimodal.image_analyzer import imageAnalyzer
 from src.agents.agriculture_agent import stream_response, invoke_response
 
 logging.basicConfig(level=logging.INFO)
@@ -258,3 +259,50 @@ async def chat_stream(req: ChatRequest):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+def build_prompt(disease: str, confidence: float) -> str:
+    return f"""
+The plant disease detection model identified: "{disease}" with {confidence * 100:.1f}% confidence.
+
+Please provide:
+1. Definition: What is this disease?
+2. Recommended Treatment: What should the farmer do?
+
+Be concise and practical.
+"""
+
+# ── main endpoint ────────────────────────────────────────────────
+@app.post("/diagnose")
+async def diagnose(file: UploadFile = File(...)):
+
+    # 1. save uploaded image to a temp file
+    temp_path = f"temp_{file.filename}"
+    with open(temp_path, "wb") as f:
+        f.write(await file.read())
+
+    try:
+        # 2. run image classifier
+        diagnosis = imageAnalyzer(temp_path)
+
+        # 3. skip DeepSeek if healthy
+        if "healthy" in diagnosis["disease"].lower():
+            return {
+                "diagnosis": diagnosis,
+                "ai_response": "Plant appears healthy. No treatment needed."
+            }
+
+        # 4. invoke LangGraph agent
+        prompt = build_prompt(diagnosis["disease"], diagnosis["confidence"])
+        ai_response = await invoke_response(message=prompt)
+
+        return {
+            "diagnosis": {
+                "disease": diagnosis["disease"],
+                "confidence": f"{diagnosis['confidence'] * 100:.1f}%"
+            },
+            "ai_response": ai_response
+        }
+
+    finally:
+        os.remove(temp_path)
