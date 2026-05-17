@@ -5,4 +5,4 @@ with open("../image.png", "rb") as f:
         "http://localhost:8000/diagnose",
         files={"file": ("image.png", f, "image/jpeg")}  # key must be "file"
     )
-print(str(response)) 
+print('responce',str(response)) 

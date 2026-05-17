@@ -1,14 +1,8 @@
-import tensorflow as tf
-import tensorflow_hub as hub
-import numpy as np
-from PIL import Image
-import matplotlib.pyplot as plt
-import os
 import logging
-from langchain.agents import create_react_agent
 from src.config.config import settings
 from src.memory.conversation_memory import get_checkpointer
 from src.retrieval.retriever import retriever_tool, diseases_tool
+from langgraph.prebuilt import create_react_agent  # ← not from langchain
 logger = logging.getLogger(__name__)
 
 TOOLS = [retriever_tool, diseases_tool]
@@ -25,7 +19,7 @@ async def _get_graph(checkpointer=None):
         tools=TOOLS,
         prompt=SYSTEM_PROMPT,
         checkpointer=checkpointer,  # ← accepted natively here
-    )
+    ) 
     return graph
 def _make_config(thread_id: str) -> dict:
     return {"configurable": {"thread_id": thread_id}}

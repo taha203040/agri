@@ -38,6 +38,6 @@ def imageAnalyzer(path):
         ]
     }
 
-result = imageAnalyzer('../../i.jpg')
-print(f"Disease  : {result['disease']}")
-print(f"Confidence: {result['confidence'] * 100:.1f}%")
+# result = imageAnalyzer('../../i.jpg')
+# print(f"Disease  : {result['disease']}")
+# print(f"Confidence: {result['confidence'] * 100:.1f}%")
