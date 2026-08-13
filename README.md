@@ -1,8 +1,9 @@
 # 🌱 Agriculture RAG
 
-An MVP **Retrieval-Augmented Generation (RAG)** application designed to answer agriculture-related questions using a knowledge base of agricultural documents.
+An MVP Retrieval-Augmented Generation (RAG) application designed to assist with agricultural questions and plant disease detection from leaf images.
 
-The system combines **semantic search**, **vector storage**, and an **AI language model** to retrieve relevant agricultural knowledge before generating an answer.
+The system combines image-based disease classification, semantic search, vector storage, and an AI language model. Users can upload a leaf image to identify potential plant diseases, or ask agriculture-related questions. The system retrieves relevant agricultural knowledge and provides it to the LLM to generate a grounded explanation and recommended actions.
+
 
 ---
 
@@ -42,8 +43,7 @@ Backend API
                     User
 ```
 
-The main idea is to **retrieve relevant agricultural information first**, then provide that context to the LLM so that the generated answer is grounded in the application's knowledge base.
-
+The main idea is to identify potential diseases from the leaf image, retrieve relevant agricultural information about the detected disease, and provide that context to the LLM so the final response is grounded in the application's agricultural knowledge base.
 ---
 
 ## 🎯 Objectives
