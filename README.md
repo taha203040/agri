@@ -558,33 +558,7 @@ Potential improvements include:
 ## 📊 High-Level Architecture
 
 ```text
-                         AGRICULTURE RAG
-                              │
-              ┌───────────────┴───────────────┐
-              │                               │
-        USER QUERY                      KNOWLEDGE INGESTION
-              │                               │
-              ▼                               ▼
-        Backend API                       Documents
-              │                               │
-              ▼                               ▼
-        Query Embedding                  Text Extraction
-              │                               │
-              ▼                               ▼
-        Vector Search                     Chunking
-              │                               │
-              ▼                               ▼
-      Relevant Documents                 Embeddings
-              │                               │
-              └──────────────┬────────────────┘
-                             ▼
-                            LLM
-                             │
-                             ▼
-                    Grounded Answer
-                             │
-                             ▼
-                           User
+              
 ```
 
 ---
