@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from src.multimodal.image_analyzer import imageAnalyzer
+# from src.multimodal.image_analyzer import imageAnalyzer
 from src.agents.agriculture_agent import stream_response, invoke_response
 
 logging.basicConfig(level=logging.INFO)
@@ -49,46 +49,46 @@ Be concise and practical.
 """
 
 # ── Routes ────────────────────────────────────────────────────────────────────
-@app.post("/diagnose")
-async def diagnose(file: UploadFile = File(...)):
-    """Upload a leaf image → diagnosis + AI treatment recommendation."""
+# @app.post("/diagnose")
+# async def diagnose(file: UploadFile = File(...)):
+#     """Upload a leaf image → diagnosis + AI treatment recommendation."""
 
 
-    temp_path = f"temp_{file.filename}"
-    with open(temp_path, "wb") as f:
-        f.write(await file.read())
+#     temp_path = f"temp_{file.filename}"
+#     with open(temp_path, "wb") as f:
+#         f.write(await file.read())
 
-    try:
-        diagnosis  = imageAnalyzer(temp_path)
-        disease    = diagnosis["disease"]
-        confidence = diagnosis["confidence"]
+#     try:
+#         diagnosis  = imageAnalyzer(temp_path)
+#         disease    = diagnosis["disease"]
+#         confidence = diagnosis["confidence"]
 
-        # prompt      = build_prompt(disease, confidence)
-        # ai_response = await asyncio.wait_for(
-        #     invoke_response(prompt),
-        #     timeout=20.0
-        # )
+#         # prompt      = build_prompt(disease, confidence)
+#         # ai_response = await asyncio.wait_for(
+#         #     invoke_response(prompt),
+#         #     timeout=20.0
+#         # )
 
-        return {
-            "diagnosis": {
-                "disease":    disease,
-                "confidence": f"{confidence * 100:.1f}%",
-            },
-            # "ai_response": ai_response
-        }
+#         return {
+#             "diagnosis": {
+#                 "disease":    disease,
+#                 "confidence": f"{confidence * 100:.1f}%",
+#             },
+#             # "ai_response": ai_response
+#         }
  
-    except asyncio.TimeoutError:
-        logger.error("Diagnose timed out after 20 seconds")
-        return {"status": "error", "detail": "Request timed out after 20 seconds"}
+#     except asyncio.TimeoutError:
+#         logger.error("Diagnose timed out after 20 seconds")
+#         return {"status": "error", "detail": "Request timed out after 20 seconds"}
 
-    except Exception as e:
-        logger.log(e)
-        logger.error(f"Diagnose error: {e}", exc_info=True)
-        return {"status": "error", "detail": str(e)}
+#     except Exception as e:
+#         logger.log(e)
+#         logger.error(f"Diagnose error: {e}", exc_info=True)
+#         return {"status": "error", "detail": str(e)}
 
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+#     finally:
+#         if os.path.exists(temp_path):
+#             os.remove(temp_path)
 
 @app.get("/")
 async def root():
