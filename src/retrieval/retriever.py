@@ -1,16 +1,41 @@
-#implement retriverl funciton
 from langchain_core.tools import create_retriever_tool
-# from src.vctrstr..faiss_index.vctrstr import vectorstore
-# from src.vectorstore.faiss_index.vctrstr import vectorstore , vectorstr_d
-retriever_tool = create_retriever_tool(
-        name='soil_retriever'
-        ,
-        description="Retrieve detailed soil sample information for farmers"
-        ,
-        # retriever=vectorstore.as_retriever(kwargs=5)
-    )
-diseases_tool = create_retriever_tool(
-    name='disease_retriever',
-    description='Disease detection for fruits or vegetables'
-    # ,retriever=vectorstr_d.as_retriever(kwargs=5)
-    )
+
+from src.vectorstore.vector import (
+    soil_vectorstore,
+    disease_vectorstore,
+)
+
+
+soil_retriever = soil_vectorstore.as_retriever(
+    search_kwargs={"k": 5}
+)
+
+disease_retriever = disease_vectorstore.as_retriever(
+    search_kwargs={"k": 5}
+)
+
+
+soil_tool = create_retriever_tool(
+    retriever=soil_retriever,
+    name="soil_search",
+    description=(
+        "Search information about soil samples, "
+        "soil types, nutrients, pH, and soil improvement."
+    ),
+)
+
+
+disease_tool = create_retriever_tool(
+    retriever=disease_retriever,
+    name="disease_search",
+    description=(
+        "Search information about plant diseases, "
+        "their causes, symptoms, and treatments."
+    ),
+)
+
+
+TOOLS = [
+    soil_tool,
+    disease_tool,
+]
