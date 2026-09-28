@@ -7,16 +7,14 @@ from src.vectorstore.vector import (
 
 
 def ingest_soil():
-    documents = load_documents("data/raw/agriculture_books")
+    documents = load_documents("data/raw/diseases")
     chunks = split_documents(documents)
-
     soil_vectorstore.add_documents(chunks)
 
 
 def ingest_diseases():
     documents = load_documents("data/raw/diseases")
     chunks = split_documents(documents)
-
     disease_vectorstore.add_documents(chunks)
 
 

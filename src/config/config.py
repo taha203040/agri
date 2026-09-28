@@ -1,15 +1,15 @@
-from pydantic_settings import BaseSettings
-from dotenv import load_dotenv
-load_dotenv()
-class Settings(BaseSettings):
-    db_uri: str = "postgresql://postgres:0000@localhost:5432/myagri"
-    model_name: str = "deepseek-chat"
-    default_thread_id: str = "default"
-    log_level: str = "INFO"
+from langchain_deepseek import ChatDeepSeek
 
-    class Config:
-        env_file = ".env"
-        extra = "ignore"   
+from src.config.settings import settings
+from src.agents.agriculture_agent import create_agriculture_agent
 
+model = ChatDeepSeek(
+    model=settings.model_name,
+    api_key=settings.deepseek_api_key,
+)
 
-settings = Settings()
+# checkpointer = get_checkpointer()
+
+agent = create_agriculture_agent(
+    model=model
+)

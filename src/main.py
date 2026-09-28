@@ -1,14 +1,16 @@
-from src.agents.agriculture_agent import create_agent
-from src.memory.conversation_memory import get_checkpointer
+from src.config.config import agent
+from src.agents.service import stream_response
+import asyncio
+async def main():
+    response = agent.invoke({
+        "messages": [
+            ("user", "What is crop rotation?")
+        ]
+    })
 
-
-def main():
-    checkpointer = get_checkpointer()
-
-    agent = create_agent(model)
-
-    # application logic
+    async for chunk in stream_response("What are the diseases of tomato?"):
+        print(chunk, end="", flush=True)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
