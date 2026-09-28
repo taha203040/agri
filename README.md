@@ -549,11 +549,6 @@ Potential improvements include:
 
    * Stream generated responses to the frontend.
 
-8. **Production Infrastructure**
-
-   * ECS, S3, managed databases, monitoring, logging, and autoscaling.
-
----
 
 ## 📊 High-Level Architecture
 
