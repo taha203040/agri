@@ -1,25 +1,48 @@
-import chromadb
-import uuid
+import asyncio
+import sys
 
-client = chromadb.PersistentClient(path="./chroma_data")
+# ── Windows: psycopg async needs SelectorEventLoop, not ProactorEventLoop ──
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-collection = client.create_collection(name="agriculture")
+from langchain_deepseek import ChatDeepSeek
 
-with open("data.txt",'r',encoding="utf-8") as f :
-    polices : list[str] =f.read().splitlines() 
+from src.config.settings import settings
+from src.memory.conversation_memory import get_checkpointer_context
+from src.agents.agriculture_agent import create_agriculture_agent
+from src.agents.service import invoke_response, stream_response
 
-collection.add(
-    ids=[str(uuid.uuid4() ) for _ in polices],
-    documents=polices,
-    metadatas=[{"lines":line} for line in range(len(polices))]
-)
-# print(collection.peek())
-results = collection.query(
-    query_texts=[
-        "what is the soile sampling guide for start planting "
-    ],
-    n_results=3
-)
-for i , qr in enumerate(results["documents"]):
-    print(f"\nQuery{i}")
-    print("\n".join(qr))
+
+async def main():
+    async with get_checkpointer_context() as checkpointer:
+        await checkpointer.setup()
+
+        model = ChatDeepSeek(
+            model=settings.model_name,
+            api_key=settings.deepseek_api_key,
+        )
+        agent = create_agriculture_agent(model=model, checkpointer=checkpointer)
+
+        thread_id = "cli-demo-1"
+
+        print("─── invoke ───")
+        answer = await invoke_response(agent, "What is crop rotation?", thread_id)
+        print(answer)
+
+        print("\n─── stream ───")
+        async for chunk in stream_response(
+            agent, "What are the diseases of tomato?", thread_id
+        ):
+            print(chunk, end="", flush=True)
+        print()
+
+        print("\n─── follow-up (same thread) ───")
+        async for chunk in stream_response(
+            agent, "What about their treatment?", thread_id
+        ):
+            print(chunk, end="", flush=True)
+        print()
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

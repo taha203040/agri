@@ -7,7 +7,7 @@ from src.vectorstore.vector import (
 
 
 def ingest_soil():
-    documents = load_documents("data/raw/diseases")
+    documents = load_documents("data/raw/soil")       # ← FIX: was "data/raw/diseases"
     chunks = split_documents(documents)
     soil_vectorstore.add_documents(chunks)
 
