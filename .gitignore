@@ -52,3 +52,5 @@ Thumbs.db
 *.raw
 chroma_disease_db
 chroma_soil_db
+/chroma_*
+data/

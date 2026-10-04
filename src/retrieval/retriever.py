@@ -3,9 +3,13 @@ from langchain_core.tools import create_retriever_tool
 from src.vectorstore.vector import (
     soil_vectorstore,
     disease_vectorstore,
+        water_vectorstore,       # add these
+    yield_vectorstore,       # add these
 )
 
-
+water_retriever = water_vectorstore.as_retriever(search_kwargs={"k": 5})
+crop_health_retriever = disease_vectorstore.as_retriever(search_kwargs={"k": 5})
+yield_retriever = yield_vectorstore.as_retriever(search_kwargs={"k": 5})
 soil_retriever = soil_vectorstore.as_retriever(
     search_kwargs={"k": 5}
 )
