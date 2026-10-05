@@ -5,7 +5,9 @@ class Settings(BaseSettings):
     db_uri: str
     model_name: str
     deepseek_api_key: str
-
+    langsmith_api_key: str
+    langsmith_tracing: bool = True
+    langsmith_project: str = "Myagriclt"
     default_thread_id: str = "default"
     log_level: str = "INFO"
 
@@ -17,4 +19,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
-

@@ -5,8 +5,8 @@ from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage
 from langchain_core.runnables import Runnable
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
-
-from src.retrieval import (
+from langsmith import traceable
+from src.retrieval.retriever import (
     water_retriever,
     crop_health_retriever,
     yield_retriever,
@@ -53,7 +53,6 @@ def classify_intent(state: AgentState) -> dict:
 # ──────────────────────────────────────────────────────────────────────────────
 # Node 2/3/4: retrievers (each is its own node)
 # ──────────────────────────────────────────────────────────────────────────────
-
 def water_node(state: AgentState) -> dict:
     query = state["messages"][-1].content
     docs = water_retriever.invoke(query)
@@ -75,7 +74,6 @@ def yield_node(state: AgentState) -> dict:
 # ──────────────────────────────────────────────────────────────────────────────
 # Node 5: synthesize answer with LLM
 # ──────────────────────────────────────────────────────────────────────────────
-
 def synthesize(state: AgentState, config) -> dict:
     model: Runnable = config["configurable"]["model"]
 
@@ -97,7 +95,6 @@ def synthesize(state: AgentState, config) -> dict:
 # ──────────────────────────────────────────────────────────────────────────────
 # Conditional routing after classify
 # ──────────────────────────────────────────────────────────────────────────────
-
 def route_retrievers(state: AgentState) -> list[str]:
     """
     Return a list of node names to run in parallel.
@@ -119,7 +116,6 @@ def route_retrievers(state: AgentState) -> list[str]:
 # ──────────────────────────────────────────────────────────────────────────────
 # Build the graph
 # ──────────────────────────────────────────────────────────────────────────────
-
 def build_agriculture_graph(model, checkpointer=None):
     builder = StateGraph(AgentState)
 
