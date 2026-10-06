@@ -23,7 +23,7 @@ async def main():
         )
         agent = create_agriculture_agent(model=model, checkpointer=checkpointer)
 
-        thread_id = "cli-demo-8"
+        thread_id = "cli-demo-hjssss00"
 
         # print("─── invoke ───")
         # answer = await invoke_response(agent, "when we use big amount of water ?", thread_id)

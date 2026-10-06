@@ -11,7 +11,12 @@ from src.retrieval.retriever import (
     crop_health_retriever,
     yield_retriever,
 )
-
+from src.retrieval.assembler import (
+    # soil_hybrid,
+    # disease_hybrid,
+    water_hybrid,
+    yield_hybrid,
+)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # State
@@ -53,24 +58,42 @@ def classify_intent(state: AgentState) -> dict:
 # ──────────────────────────────────────────────────────────────────────────────
 # Node 2/3/4: retrievers (each is its own node)
 # ──────────────────────────────────────────────────────────────────────────────
-def water_node(state: AgentState) -> dict:
-    query = state["messages"][-1].content
-    docs = water_retriever.invoke(query)
+# def water_node(state: AgentState) -> dict:
+#     query = state["messages"][-1].content
+#     # docs = water_retriever.invoke(query)
+#     # return {"context": [f"[water] {d.page_content}" for d in docs]}
+
+
+# def crop_health_node(state: AgentState) -> dict:
+#     query = state["messages"][-1].content
+#     docs = crop_health_retriever.invoke(query)
+#     return {"context": [f"[crop_health] {d.page_content}" for d in docs]}
+
+
+# def yield_node(state: AgentState) -> dict:
+#     query = state["messages"][-1].content
+#     docs = yield_retriever.invoke(query)
+#     return {"context": [f"[yield] {d.page_content}" for d in docs]}
+
+
+# def soil_node(state):
+#     docs = soil_hybrid.invoke(state["messages"][-1].content)
+#     return {"context": [f"[soil] {d.page_content}" for d in docs]}
+
+
+# def crop_health_node(state):
+#     docs = disease_hybrid.invoke(state["messages"][-1].content)
+#     return {"context": [f"[crop_health] {d.page_content}" for d in docs]}
+
+
+def water_node(state):
+    docs = water_hybrid.invoke(state["messages"][-1].content)
     return {"context": [f"[water] {d.page_content}" for d in docs]}
 
 
-def crop_health_node(state: AgentState) -> dict:
-    query = state["messages"][-1].content
-    docs = crop_health_retriever.invoke(query)
-    return {"context": [f"[crop_health] {d.page_content}" for d in docs]}
-
-
-def yield_node(state: AgentState) -> dict:
-    query = state["messages"][-1].content
-    docs = yield_retriever.invoke(query)
+def yield_node(state):
+    docs = yield_hybrid.invoke(state["messages"][-1].content)
     return {"context": [f"[yield] {d.page_content}" for d in docs]}
-
-
 # ──────────────────────────────────────────────────────────────────────────────
 # Node 5: synthesize answer with LLM
 # ──────────────────────────────────────────────────────────────────────────────
@@ -105,12 +128,14 @@ def route_retrievers(state: AgentState) -> list[str]:
 
     if "water" in intents:
         routes.append("water_node")
-    if "crop_health" in intents:
-        routes.append("crop_health_node")
+    # if "crop_health" in intents:
+    #     routes.append("crop_health_node")
     if "yield" in intents:
         routes.append("yield_node")
 
-    return routes or ["water_node", "crop_health_node", "yield_node"]
+    return routes or ["water_node",
+                    #    "crop_health_node",
+                         "yield_node"]
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -122,7 +147,7 @@ def build_agriculture_graph(model, checkpointer=None):
     # nodes
     builder.add_node("classify", classify_intent)
     builder.add_node("water_node", water_node)
-    builder.add_node("crop_health_node", crop_health_node)
+    # builder.add_node("crop_health_node", crop_health_node)
     builder.add_node("yield_node", yield_node)
     builder.add_node("synthesize", synthesize)
 
@@ -133,12 +158,14 @@ def build_agriculture_graph(model, checkpointer=None):
     builder.add_conditional_edges(
         "classify",
         route_retrievers,
-        ["water_node", "crop_health_node", "yield_node"],
+        ["water_node",
+        #   "crop_health_node",
+            "yield_node"],
     )
 
     # fan-in: all retrievers go to synthesize
     builder.add_edge("water_node", "synthesize")
-    builder.add_edge("crop_health_node", "synthesize")
+    # builder.add_edge("crop_health_node", "synthesize")
     builder.add_edge("yield_node", "synthesize")
 
     builder.add_edge("synthesize", END)
