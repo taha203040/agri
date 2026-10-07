@@ -36,7 +36,7 @@ def ingest_yield():
 
 
 if __name__ == "__main__":
-    # ingest_soil()
+    ingest_soil()
     ingest_diseases()
     ingest_water()
     ingest_yield()

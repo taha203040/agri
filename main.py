@@ -31,7 +31,7 @@ async def main():
 
         print("\n─── stream ───")
         async for chunk in stream_response(
-            agent, "what does the retriver cover about the water ?", thread_id
+            agent, "How much water does maize need per growing season??", thread_id
         ):
             print(chunk, end="", flush=True)
         print()

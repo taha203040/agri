@@ -12,8 +12,8 @@ from src.retrieval.retriever import (
     yield_retriever,
 )
 from src.retrieval.assembler import (
-    # soil_hybrid,
-    # disease_hybrid,
+    soil_hybrid,
+    disease_hybrid,
     water_hybrid,
     yield_hybrid,
 )
@@ -76,14 +76,14 @@ def classify_intent(state: AgentState) -> dict:
 #     return {"context": [f"[yield] {d.page_content}" for d in docs]}
 
 
-# def soil_node(state):
-#     docs = soil_hybrid.invoke(state["messages"][-1].content)
-#     return {"context": [f"[soil] {d.page_content}" for d in docs]}
+def soil_node(state):
+    docs = soil_hybrid.invoke(state["messages"][-1].content)
+    return {"context": [f"[soil] {d.page_content}" for d in docs]}
 
 
-# def crop_health_node(state):
-#     docs = disease_hybrid.invoke(state["messages"][-1].content)
-#     return {"context": [f"[crop_health] {d.page_content}" for d in docs]}
+def crop_health_node(state):
+    docs = disease_hybrid.invoke(state["messages"][-1].content)
+    return {"context": [f"[crop_health] {d.page_content}" for d in docs]}
 
 
 def water_node(state):
@@ -128,13 +128,13 @@ def route_retrievers(state: AgentState) -> list[str]:
 
     if "water" in intents:
         routes.append("water_node")
-    # if "crop_health" in intents:
-    #     routes.append("crop_health_node")
+    if "crop_health" in intents:
+        routes.append("crop_health_node")
     if "yield" in intents:
         routes.append("yield_node")
 
     return routes or ["water_node",
-                    #    "crop_health_node",
+                       "crop_health_node",
                          "yield_node"]
 
 
@@ -147,7 +147,7 @@ def build_agriculture_graph(model, checkpointer=None):
     # nodes
     builder.add_node("classify", classify_intent)
     builder.add_node("water_node", water_node)
-    # builder.add_node("crop_health_node", crop_health_node)
+    builder.add_node("crop_health_node", crop_health_node)
     builder.add_node("yield_node", yield_node)
     builder.add_node("synthesize", synthesize)
 
@@ -159,13 +159,13 @@ def build_agriculture_graph(model, checkpointer=None):
         "classify",
         route_retrievers,
         ["water_node",
-        #   "crop_health_node",
+          "crop_health_node",
             "yield_node"],
     )
 
     # fan-in: all retrievers go to synthesize
     builder.add_edge("water_node", "synthesize")
-    # builder.add_edge("crop_health_node", "synthesize")
+    builder.add_edge("crop_health_node", "synthesize")
     builder.add_edge("yield_node", "synthesize")
 
     builder.add_edge("synthesize", END)

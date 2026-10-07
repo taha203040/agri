@@ -1,19 +1,30 @@
+# src/retrieval/bm_search.py
 from langchain_community.retrievers import BM25Retriever
 
 from src.ingestion.loader import load_documents
 from src.ingestion.splitter import split_documents
 
 
+soil_docs = load_documents("data/raw/soil")
+soil_chunks = split_documents(soil_docs)
+soil_bm25 = BM25Retriever.from_documents(soil_chunks)
+soil_bm25.k = 5
+
+
+disease_docs = load_documents("data/raw/diseases")
+disease_chunks = split_documents(disease_docs)
+disease_bm25 = BM25Retriever.from_documents(disease_chunks)
+disease_bm25.k = 5
+
+
 water_docs = load_documents("data/raw/water")
 water_chunks = split_documents(water_docs)
-
 water_bm25 = BM25Retriever.from_documents(water_chunks)
 water_bm25.k = 5
 
 
 yield_docs = load_documents("data/raw/yield")
 yield_chunks = split_documents(yield_docs)
-
 yield_bm25 = BM25Retriever.from_documents(yield_chunks)
 yield_bm25.k = 5
 if __name__ == "__main__":
