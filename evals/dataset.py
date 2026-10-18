@@ -5,17 +5,19 @@ from evals.config import DATASET_NAME
 
 QUESTIONS = [
     # ── WATER ──────────────────────────────────────────────
-    {
-        "question": "How much water does maize need per growing season?",
-        "answer": (
-            "Maize typically requires 500–800 mm of water per growing "
-            "season, depending on climate, soil type, and variety. "
-            "Peak demand occurs during tasseling and grain filling."
-        ),
-        "topic": "water",
-    },
-
-    # ── SOIL ───────────────────────────────────────────────
+   {
+    "question": "How much water does maize and tomato need per day and per growing season?",
+    "answer": (
+        "Maize requires approximately 500-800 mm of water per growing "
+        "season, with peak demand during tasseling and grain filling. "
+        "Tomato typically uses 2.5-7.5 mm of water per day and requires "
+        "approximately 400-800 mm per growing season. Actual water "
+        "requirements depend on climate, soil type, crop variety, "
+        "and growth stage."
+    ),
+    "topic": "water",
+},
+    # # ── SOIL ───────────────────────────────────────────────
     {
         "question": "What are the signs of nitrogen deficiency in crops?",
         "answer": (
