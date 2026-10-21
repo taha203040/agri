@@ -7,15 +7,15 @@ from src.vectorstore.vector import (
     yield_vectorstore,       # add these
 )
 
-water_retriever = water_vectorstore.as_retriever(search_kwargs={"k": 5})
-crop_health_retriever = disease_vectorstore.as_retriever(search_kwargs={"k": 5})
-yield_retriever = yield_vectorstore.as_retriever(search_kwargs={"k": 5})
+water_retriever = water_vectorstore.as_retriever(search_kwargs={"k": 6})
+crop_health_retriever = disease_vectorstore.as_retriever(search_kwargs={"k": 6})
+yield_retriever = yield_vectorstore.as_retriever(search_kwargs={"k": 6})
 soil_retriever = soil_vectorstore.as_retriever(
-    search_kwargs={"k": 5}
+    search_kwargs={"k": 6}
 )
 
 disease_retriever = disease_vectorstore.as_retriever(
-    search_kwargs={"k": 5}
+    search_kwargs={"k": 6}
 )
 
 

@@ -5,7 +5,7 @@ from src.config.settings import settings
 from dotenv import load_dotenv
 load_dotenv()
 
-DATASET_NAME = "agri-rag-eval"
+DATASET_NAME = "agri-rag-eval-2"
 
 # Judge model — uses DeepSeek since that's your only API.
 # If you later add OpenAI/Anthropic, swap here.

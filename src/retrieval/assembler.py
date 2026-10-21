@@ -18,22 +18,22 @@ from src.retrieval.bm_search import (
 
 soil_hybrid = EnsembleRetriever(
     retrievers=[soil_bm25, soil_retriever],
-    weights=[0.5, 0.5],
+    weights=[0.5, 0.55],
 )
 
 disease_hybrid = EnsembleRetriever(
     retrievers=[disease_bm25, disease_retriever],
-    weights=[0.5, 0.5],
+    weights=[0.5, 0.55],
 )
 
 water_hybrid = EnsembleRetriever(
     retrievers=[water_bm25, water_retriever],
-    weights=[0.5, 0.5],
+    weights=[0.5, 0.55],
 )
 
 yield_hybrid = EnsembleRetriever(
     retrievers=[yield_bm25, yield_retriever],
-    weights=[0.5, 0.5],
+    weights=[0.5, 0.55],
 )
 # print(yield_hybrid)
 

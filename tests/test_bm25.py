@@ -7,7 +7,7 @@ def test_water_bm25():
     water_docs = load_documents("data/raw/water")
 
     retriever = BM25Retriever.from_documents(water_docs)
-    retriever.k = 5
+    retriever.k = 2
 
     query = "How much water does a crop need during the growing season?"
 

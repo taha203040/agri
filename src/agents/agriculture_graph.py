@@ -33,27 +33,73 @@ class AgentState(TypedDict):
 # Node 1: classify intent
 # ──────────────────────────────────────────────────────────────────────────────
 
+# def classify_intent(state: AgentState) -> dict:
+#     """
+#     Decide which retriever(s) to run based on the last user message.
+#     Could also be an LLM call — rules are fine and cheaper.
+#     """
+#     q = state["messages"][-1].content.lower()
+
+#     intents = []
+#     if any(k in q for k in ["water", "irrigation", "moisture", "rain"]):
+#         intents.append("water")
+#     if any(k in q for k in ["disease", "pest", "health", "leaf", "fungus"]):
+#         intents.append("crop_health")
+#     if any(k in q for k in ["yield", "harvest", "production", "forecast"]):
+#         intents.append("yield")
+
+#     # default: run all
+#     if not intents:
+#         intents = ["water", "crop_health", "yield"]
+
+#     return {"intent": ",".join(intents)}
 def classify_intent(state: AgentState) -> dict:
-    """
-    Decide which retriever(s) to run based on the last user message.
-    Could also be an LLM call — rules are fine and cheaper.
-    """
     q = state["messages"][-1].content.lower()
 
     intents = []
-    if any(k in q for k in ["water", "irrigation", "moisture", "rain"]):
+
+    # Soil / nutrient signals — check this FIRST, before crop_health,
+    # because "leaf yellowing" would otherwise be captured by crop_health.
+    soil_keywords = [
+        "nutrient", "deficiency", "deficient",
+        "nitrogen", "phosphorus", "potassium", "magnesium",
+        "iron", "sulfur", "calcium", "zinc", "boron",
+        "interveinal", "chlorosis", "yellowing", "yellow",
+        "soil ph", "ph ", "calcareous", "saline", "sodic",
+        "soil type", "sandy soil", "clay soil", "loam",
+        "fertility", "fertilizer", "manure",
+    ]
+    if any(k in q for k in soil_keywords):
+        intents.append("soil")
+
+    # Water
+    if any(k in q for k in [
+        "water", "irrigation", "moisture", "rain", "evapotranspiration",
+        "etc", "eto", "kc", "mm/day", "mm/season", "m³/ha",
+        "crop coefficient", "drip", "sprinkler", "deficit irrigation",
+    ]):
         intents.append("water")
-    if any(k in q for k in ["disease", "pest", "health", "leaf", "fungus"]):
+
+    # Crop health / disease (narrower than before — no more "leaf")
+    if any(k in q for k in [
+        "disease", "pest", "pathogen", "fungus", "fungal",
+        "blight", "mildew", "rot", "wilt", "mosaic", "virus",
+        "anthracnose", "rust", "spot", "scab", "canker",
+    ]):
         intents.append("crop_health")
-    if any(k in q for k in ["yield", "harvest", "production", "forecast"]):
+
+    # Yield
+    if any(k in q for k in [
+        "yield", "harvest", "production", "forecast",
+        "productivity", "harvest index", "yield gap",
+    ]):
         intents.append("yield")
 
-    # default: run all
+    # Fallback: run everything (including soil)
     if not intents:
-        intents = ["water", "crop_health", "yield"]
+        intents = ["soil", "water", "crop_health", "yield"]
 
     return {"intent": ",".join(intents)}
-
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Node 2/3/4: retrievers (each is its own node)
@@ -118,14 +164,31 @@ def synthesize(state: AgentState, config) -> dict:
 # ──────────────────────────────────────────────────────────────────────────────
 # Conditional routing after classify
 # ──────────────────────────────────────────────────────────────────────────────
+# def route_retrievers(state: AgentState) -> list[str]:
+#     """
+#     Return a list of node names to run in parallel.
+#     LangGraph executes them concurrently and merges state via `operator.add`.
+#     """
+#     routes = []
+#     intents = state["intent"].split(",")
+
+#     if "water" in intents:
+#         routes.append("water_node")
+#     if "crop_health" in intents:
+#         routes.append("crop_health_node")
+#     if "yield" in intents:
+#         routes.append("yield_node")
+
+#     return routes or ["water_node",
+#                        "crop_health_node",
+#                          "yield_node"]
+
 def route_retrievers(state: AgentState) -> list[str]:
-    """
-    Return a list of node names to run in parallel.
-    LangGraph executes them concurrently and merges state via `operator.add`.
-    """
     routes = []
     intents = state["intent"].split(",")
 
+    if "soil" in intents:
+        routes.append("soil_node")
     if "water" in intents:
         routes.append("water_node")
     if "crop_health" in intents:
@@ -133,15 +196,53 @@ def route_retrievers(state: AgentState) -> list[str]:
     if "yield" in intents:
         routes.append("yield_node")
 
-    return routes or ["water_node",
-                       "crop_health_node",
-                         "yield_node"]
-
+    return routes or [
+        "soil_node",
+        "water_node",
+        "crop_health_node",
+        "yield_node",
+    ]
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Build the graph
 # ──────────────────────────────────────────────────────────────────────────────
 def build_agriculture_graph(model, checkpointer=None):
+    builder = StateGraph(AgentState)
+
+    # nodes — soil_node is now registered
+    builder.add_node("classify", classify_intent)
+    builder.add_node("soil_node", soil_node)
+    builder.add_node("water_node", water_node)
+    builder.add_node("crop_health_node", crop_health_node)
+    builder.add_node("yield_node", yield_node)
+    builder.add_node("synthesize", synthesize)
+
+    # edges
+    builder.add_edge(START, "classify")
+
+    # fan-out: after classify, run one or more retrievers in parallel
+    builder.add_conditional_edges(
+        "classify",
+        route_retrievers,
+        [
+            "soil_node",
+            "water_node",
+            "crop_health_node",
+            "yield_node",
+        ],
+    )
+
+    # fan-in: all retrievers go to synthesize
+    builder.add_edge("soil_node", "synthesize")
+    builder.add_edge("water_node", "synthesize")
+    builder.add_edge("crop_health_node", "synthesize")
+    builder.add_edge("yield_node", "synthesize")
+
+    builder.add_edge("synthesize", END)
+
+    graph = builder.compile(checkpointer=checkpointer)
+    return graph.with_config({"configurable": {"model": model}})
+# def build_agriculture_graph(model, checkpointer=None):
     builder = StateGraph(AgentState)
 
     # nodes
