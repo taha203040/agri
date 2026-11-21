@@ -32,27 +32,6 @@ class AgentState(TypedDict):
 # ──────────────────────────────────────────────────────────────────────────────
 # Node 1: classify intent
 # ──────────────────────────────────────────────────────────────────────────────
-
-# def classify_intent(state: AgentState) -> dict:
-#     """
-#     Decide which retriever(s) to run based on the last user message.
-#     Could also be an LLM call — rules are fine and cheaper.
-#     """
-#     q = state["messages"][-1].content.lower()
-
-#     intents = []
-#     if any(k in q for k in ["water", "irrigation", "moisture", "rain"]):
-#         intents.append("water")
-#     if any(k in q for k in ["disease", "pest", "health", "leaf", "fungus"]):
-#         intents.append("crop_health")
-#     if any(k in q for k in ["yield", "harvest", "production", "forecast"]):
-#         intents.append("yield")
-
-#     # default: run all
-#     if not intents:
-#         intents = ["water", "crop_health", "yield"]
-
-#     return {"intent": ",".join(intents)}
 def classify_intent(state: AgentState) -> dict:
     q = state["messages"][-1].content.lower()
 
@@ -101,26 +80,6 @@ def classify_intent(state: AgentState) -> dict:
 
     return {"intent": ",".join(intents)}
 
-# ──────────────────────────────────────────────────────────────────────────────
-# Node 2/3/4: retrievers (each is its own node)
-# ──────────────────────────────────────────────────────────────────────────────
-# def water_node(state: AgentState) -> dict:
-#     query = state["messages"][-1].content
-#     # docs = water_retriever.invoke(query)
-#     # return {"context": [f"[water] {d.page_content}" for d in docs]}
-
-
-# def crop_health_node(state: AgentState) -> dict:
-#     query = state["messages"][-1].content
-#     docs = crop_health_retriever.invoke(query)
-#     return {"context": [f"[crop_health] {d.page_content}" for d in docs]}
-
-
-# def yield_node(state: AgentState) -> dict:
-#     query = state["messages"][-1].content
-#     docs = yield_retriever.invoke(query)
-#     return {"context": [f"[yield] {d.page_content}" for d in docs]}
-
 
 def soil_node(state):
     docs = soil_hybrid.invoke(state["messages"][-1].content)
@@ -159,29 +118,6 @@ def synthesize(state: AgentState, config) -> dict:
 
     response = model.invoke([system] + state["messages"])
     return {"messages": [response]}
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Conditional routing after classify
-# ──────────────────────────────────────────────────────────────────────────────
-# def route_retrievers(state: AgentState) -> list[str]:
-#     """
-#     Return a list of node names to run in parallel.
-#     LangGraph executes them concurrently and merges state via `operator.add`.
-#     """
-#     routes = []
-#     intents = state["intent"].split(",")
-
-#     if "water" in intents:
-#         routes.append("water_node")
-#     if "crop_health" in intents:
-#         routes.append("crop_health_node")
-#     if "yield" in intents:
-#         routes.append("yield_node")
-
-#     return routes or ["water_node",
-#                        "crop_health_node",
-#                          "yield_node"]
 
 def route_retrievers(state: AgentState) -> list[str]:
     routes = []
