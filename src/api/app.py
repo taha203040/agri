@@ -64,11 +64,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "http://localhost:8080",
-    ],
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -82,6 +78,11 @@ app.add_middleware(
 class ChatRequest(BaseModel):
     question: str
     thread_id: str = "default"
+
+
+def _sse(payload: dict) -> str:
+    """Format one Server-Sent Event frame (wire format unchanged)."""
+    return f"data: {json.dumps(payload)}\n\n"
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -137,39 +138,20 @@ async def chat_stream(request: ChatRequest, req: Request):
     """
     async def generate():
         try:
-            yield (
-                f"data: {json.dumps({
-                    'type': 'status',
-                    'content': 'Thinking...'
-                })}\n\n"
-            )
+            yield _sse({"type": "status", "content": "Thinking..."})
 
             async for text in stream_response(
                 req.app.state.agent,
                 request.question,
                 request.thread_id,
             ):
-                yield (
-                    f"data: {json.dumps({
-                        'type': 'token',
-                        'content': text
-                    })}\n\n"
-                )
+                yield _sse({"type": "token", "content": text})
 
-            yield (
-                f"data: {json.dumps({
-                    'type': 'done'
-                })}\n\n"
-            )
+            yield _sse({"type": "done"})
 
         except Exception as e:
             logger.error("Streaming request failed: %s", e, exc_info=True)
-            yield (
-                f"data: {json.dumps({
-                    'type': 'error',
-                    'error': str(e)
-                })}\n\n"
-            )
+            yield _sse({"type": "error", "error": str(e)})
 
     return StreamingResponse(
         generate(),

@@ -1,16 +1,11 @@
-from typing import Annotated, Literal, TypedDict
+from typing import Annotated, TypedDict
 import operator
 
-from langchain_core.messages import AnyMessage, SystemMessage, HumanMessage
+from langchain_core.messages import AnyMessage, SystemMessage
 from langchain_core.runnables import Runnable
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.message import add_messages
-from langsmith import traceable
-from src.retrieval.retriever import (
-    water_retriever,
-    crop_health_retriever,
-    yield_retriever,
-)
+from langgraph.types import Overwrite
 from src.retrieval.assembler import (
     soil_hybrid,
     disease_hybrid,
@@ -25,7 +20,9 @@ from src.retrieval.assembler import (
 class AgentState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
     intent: str
-    # `operator.add` lets parallel nodes append without overwriting each other
+    # `operator.add` lets parallel nodes append without overwriting each other.
+    # `classify_intent` resets it at the start of every turn (see below) so
+    # retrieved context does not pile up in the checkpoint across turns.
     context: Annotated[list[str], operator.add]
 
 
@@ -78,7 +75,10 @@ def classify_intent(state: AgentState) -> dict:
     if not intents:
         intents = ["soil", "water", "crop_health", "yield"]
 
-    return {"intent": ",".join(intents)}
+    # Fresh context per turn: with a checkpointer the `operator.add` reducer
+    # would otherwise keep appending every turn's chunks to the same thread,
+    # growing the stored state and feeding stale chunks into later answers.
+    return {"intent": ",".join(intents), "context": Overwrite([])}
 
 
 def soil_node(state):
@@ -170,37 +170,6 @@ def build_agriculture_graph(model, checkpointer=None):
 
     # fan-in: all retrievers go to synthesize
     builder.add_edge("soil_node", "synthesize")
-    builder.add_edge("water_node", "synthesize")
-    builder.add_edge("crop_health_node", "synthesize")
-    builder.add_edge("yield_node", "synthesize")
-
-    builder.add_edge("synthesize", END)
-
-    graph = builder.compile(checkpointer=checkpointer)
-    return graph.with_config({"configurable": {"model": model}})
-# def build_agriculture_graph(model, checkpointer=None):
-    builder = StateGraph(AgentState)
-
-    # nodes
-    builder.add_node("classify", classify_intent)
-    builder.add_node("water_node", water_node)
-    builder.add_node("crop_health_node", crop_health_node)
-    builder.add_node("yield_node", yield_node)
-    builder.add_node("synthesize", synthesize)
-
-    # edges
-    builder.add_edge(START, "classify")
-
-    # fan-out: after classify, run one or more retrievers in parallel
-    builder.add_conditional_edges(
-        "classify",
-        route_retrievers,
-        ["water_node",
-          "crop_health_node",
-            "yield_node"],
-    )
-
-    # fan-in: all retrievers go to synthesize
     builder.add_edge("water_node", "synthesize")
     builder.add_edge("crop_health_node", "synthesize")
     builder.add_edge("yield_node", "synthesize")

@@ -1,5 +1,7 @@
+from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 from langchain_chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_core.embeddings import Embeddings
+# from langchain_huggingface import HuggingFaceEmbeddings
 
 
 # embeddings = HuggingFaceEmbeddings(
@@ -7,29 +9,57 @@ from langchain_huggingface import HuggingFaceEmbeddings
 # )
 
 
+class ChromaDefaultEmbeddings(Embeddings):
+    """
+    LangChain `Embeddings` adapter around Chroma's built-in default embedder
+    (all-MiniLM-L6-v2 via ONNX).
+
+    Why this exists: `langchain-chroma` >= 1.x always opens collections with
+    `embedding_function=None`, and `chromadb` >= 1.x then refuses to embed
+    text ("You must provide an embedding function"). Passing this adapter keeps
+    the *same* embedding model these stores used before, so existing
+    collections stay valid and nothing needs to be re-ingested.
+    """
+
+    def __init__(self) -> None:
+        self._ef = DefaultEmbeddingFunction()
+
+    def _embed(self, texts: list[str]) -> list[list[float]]:
+        return [[float(x) for x in vec] for vec in self._ef(list(texts))]
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return self._embed(texts)
+
+    def embed_query(self, text: str) -> list[float]:
+        return self._embed([text])[0]
+
+
+embeddings = ChromaDefaultEmbeddings()
+
+
 soil_vectorstore = Chroma(
     collection_name="soil_collection",
     persist_directory="./chroma_soil_db",
-    # embedding_function=embeddings,
+    embedding_function=embeddings,
 )
 
 
 disease_vectorstore = Chroma(
     collection_name="disease_collection",
     persist_directory="./chroma_disease_db",
-    # embedding_function=embeddings,
+    embedding_function=embeddings,
 )
 
 
 water_vectorstore = Chroma(
     collection_name="water_collection",
     persist_directory="./chroma_water_db",
-    # embedding_function=embeddings,
+    embedding_function=embeddings,
 )
 
 
 yield_vectorstore = Chroma(
     collection_name="yield_collection",
     persist_directory="./chroma_yield_db",
-    # embedding_function=embeddings,
+    embedding_function=embeddings,
 )

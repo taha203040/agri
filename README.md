@@ -109,6 +109,52 @@ uvicorn src.api.app:app --reload
 # Run without FastAPI
 python -m src.main
 ```
+## 🌐 API Endpoints
+
+Both call styles delegate to `src/agents/service.py`. Interactive docs: <http://localhost:8000/docs>
+
+| Method | Path            | Delegates to      | Returns                |
+| ------ | --------------- | ----------------- | ---------------------- |
+| POST   | `/chat`         | `invoke_response` | Complete JSON answer   |
+| POST   | `/chat/stream`  | `stream_response` | SSE token stream       |
+| GET    | `/chat/stream`  | `stream_response` | SSE for `EventSource`  |
+| GET    | `/health`       | —                 | Liveness + agent ready |
+
+### Invoke — wait for the complete answer
+
+```bash
+curl -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"question": "How much water does maize need per season?", "thread_id": "demo"}'
+```
+
+```json
+{"status": "success", "thread_id": "demo", "response": "..."}
+```
+
+`thread_id` is optional. Omit it and the server starts a new conversation, returning the
+generated id so the next request can continue the same memory.
+
+### Stream — token by token
+
+```bash
+curl -N -X POST http://localhost:8000/chat/stream \
+  -H "Content-Type: application/json" \
+  -d '{"question": "How much water does maize need per season?"}'
+```
+
+```text
+data: {"type": "meta", "thread_id": "chat-6f1c..."}
+data: {"type": "status", "content": "Thinking..."}
+data: {"type": "token", "content": "Maize"}
+data: {"type": "token", "content": " needs"}
+data: {"type": "done", "thread_id": "chat-6f1c..."}
+```
+
+Concatenate the `content` of every `token` frame. If generation fails mid-stream, an
+`error` frame replaces `done`. Errors before streaming starts: `422` invalid input,
+`502` agent failure, `503` agent still starting.
+
 ## 🔄 RAG Request Flow
 
 When a user asks a question:

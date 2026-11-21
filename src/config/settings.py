@@ -10,6 +10,11 @@ class Settings(BaseSettings):
     langsmith_project: str = "Myagriclt"
     default_thread_id: str = "default"
     log_level: str = "INFO"
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:8080",
+    ]
 
     model_config = SettingsConfigDict(
         env_file=".env",
