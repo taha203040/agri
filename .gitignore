@@ -54,3 +54,5 @@ chroma_disease_db
 chroma_soil_db
 /chroma_*
 data/
+# eval run summaries
+evals/results/

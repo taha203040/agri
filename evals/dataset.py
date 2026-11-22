@@ -236,6 +236,11 @@ QUESTIONS = [
     },
 ]
 
+# Lets reports group scores by topic even for a dataset that was created before
+# topics were stored as example metadata.
+TOPIC_BY_QUESTION = {q["question"]: q["topic"] for q in QUESTIONS}
+
+
 def get_or_create_dataset(client: Client):
     """Create the dataset if it doesn't exist; return it either way."""
     try:
@@ -251,6 +256,7 @@ def get_or_create_dataset(client: Client):
     client.create_examples(
         inputs=[{"question": q["question"]} for q in QUESTIONS],
         outputs=[{"answer": q["answer"]} for q in QUESTIONS],
+        metadata=[{"topic": q["topic"]} for q in QUESTIONS],
         dataset_id=dataset.id,
     )
 

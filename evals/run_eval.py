@@ -1,6 +1,10 @@
 import asyncio
+import json
 import sys
 import os
+from collections import defaultdict
+from datetime import datetime
+from pathlib import Path
 
 # Windows: psycopg async needs SelectorEventLoop
 if sys.platform == "win32":
@@ -18,13 +22,49 @@ from src.memory.conversation_memory import get_checkpointer_context
 from src.agents.agriculture_agent import create_agriculture_agent
 
 from evals.config import DATASET_NAME
-from evals.dataset import get_or_create_dataset
+from evals.dataset import get_or_create_dataset, TOPIC_BY_QUESTION
 from evals.target import make_target
 from evals.evaluators import (
-    helpfulness_judge,
-    groundedness_judge,
-    retrieval_relevance_judge,
+    helpfulness_evaluator,
+    groundedness_evaluator,
+    retrieval_relevance_evaluator,
+    correctness_evaluator,
 )
+
+RESULTS_DIR = Path(__file__).parent / "results"
+
+
+async def summarize(results) -> dict:
+    """Mean score per metric, overall and per topic (True/False count as 1/0)."""
+    scores: dict[str, dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+
+    async for row in results:
+        question = row["example"].inputs.get("question", "")
+        topic = (row["example"].metadata or {}).get("topic") or TOPIC_BY_QUESTION.get(question, "unknown")
+        for r in row["evaluation_results"]["results"]:
+            if r.score is None:
+                continue
+            scores["all"][r.key].append(float(r.score))
+            scores[topic][r.key].append(float(r.score))
+
+    return {
+        topic: {
+            metric: {"mean": round(sum(v) / len(v), 3), "n": len(v)}
+            for metric, v in metrics.items()
+        }
+        for topic, metrics in scores.items()
+    }
+
+
+def print_summary(summary: dict) -> None:
+    metrics = sorted({m for t in summary.values() for m in t})
+    print(f"\n{'topic':<12}" + "".join(f"{m:>22}" for m in metrics))
+    for topic in sorted(summary, key=lambda t: (t != "all", t)):
+        row = "".join(
+            f"{summary[topic][m]['mean']:>16.2f} (n={summary[topic][m]['n']:<2})" if m in summary[topic] else f"{'-':>22}"
+            for m in metrics
+        )
+        print(f"{topic:<12}{row}")
 
 
 async def main():
@@ -53,9 +93,10 @@ async def main():
             target,
             data=dataset.name,
             evaluators=[
-                helpfulness_judge,
-                groundedness_judge,
-                retrieval_relevance_judge,
+                helpfulness_evaluator,
+                groundedness_evaluator,
+                retrieval_relevance_evaluator,
+                correctness_evaluator,
             ],
             experiment_prefix="agri-rag-baseline",
             metadata={
@@ -65,17 +106,15 @@ async def main():
             max_concurrency=2,
         )
 
-        # 5. Print summary
-        print("\n📊 Results:")
-        print(results)
+        # 5. Summarize (overall + per topic) and save so runs can be compared
+        summary = await summarize(results)
+        print("\n📊 Results (mean score, 1.0 = all passed):")
+        print_summary(summary)
 
-        # Optional: convert to pandas if installed
-        try:
-            df = results.to_pandas()
-            print("\n📈 Per-example results:")
-            print(df[["inputs.question", "feedback.helpfulness", "feedback.groundedness", "feedback.retrieval_relevance"]])
-        except Exception:
-            pass
+        RESULTS_DIR.mkdir(exist_ok=True)
+        out = RESULTS_DIR / f"{datetime.now():%Y%m%d-%H%M%S}.json"
+        out.write_text(json.dumps(summary, indent=2), encoding="utf-8")
+        print(f"\n💾 Saved to {out}")
 
 
 if __name__ == "__main__":

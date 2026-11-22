@@ -60,10 +60,11 @@ def test_helpfulness():
     t.log_inputs(inputs)
     t.log_outputs({"answer": outputs["answer"]})
 
-    helpfulness_judge(
+    result = helpfulness_judge(
         inputs=inputs,
         outputs={"answer": outputs["answer"]},
     )
+    assert result["score"], result.get("comment")
 
 
 @pytest.mark.langsmith
@@ -75,10 +76,11 @@ def test_groundedness():
     t.log_outputs({"answer": outputs["answer"]})
     t.log_metadata({"num_documents": len(outputs["documents"])})
 
-    groundedness_judge(
+    result = groundedness_judge(
         context={"documents": outputs["documents"]},
         outputs={"answer": outputs["answer"]},
     )
+    assert result["score"], result.get("comment")
 
 
 @pytest.mark.langsmith
@@ -89,7 +91,8 @@ def test_retrieval_relevance():
     t.log_inputs(inputs)
     t.log_outputs({"answer": outputs["answer"]})
 
-    retrieval_relevance_judge(
+    result = retrieval_relevance_judge(
         inputs=inputs,
         context={"documents": outputs["documents"]},
     )
+    assert result["score"], result.get("comment")
