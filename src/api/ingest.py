@@ -15,10 +15,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel
 
 from src.config.settings import settings
+from src.messaging.producer import publish_document
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +43,8 @@ class IngestResponse(BaseModel):
     status: str
     created_at: str
     duplicate: bool = False
+    chunk_count: int | None = None
+    error: str | None = None
 
 
 def _dirs() -> tuple[Path, Path, Path]:
@@ -67,8 +70,35 @@ def _looks_valid(ext: str, head: bytes) -> bool:
     return b"\x00" not in head  # text formats must not contain NUL bytes
 
 
+async def _queue(request: Request, record: dict, meta_path: Path) -> None:
+    """Publish to Kafka and mark 'queued'. If Kafka is unavailable the document stays 'received'."""
+    stored_as = record.get("stored_as") or (
+        f"{record['doc_id']}{Path(record['filename']).suffix.lower()}"
+    )
+    message = {
+        "schema_version": 1,
+        "doc_id": record["doc_id"],
+        "filename": record["filename"],
+        "topic": record["topic"],
+        "stored_as": f"files/{stored_as}",
+        "sha256": record["sha256"],
+        "size_bytes": record["size_bytes"],
+        "attempt": 0,
+        "submitted_at": record["created_at"],
+    }
+    producer = getattr(request.app.state, "kafka_producer", None)
+    if await publish_document(producer, message):
+        # The worker may already have advanced the status; only move received -> queued.
+        current = json.loads(meta_path.read_text(encoding="utf-8"))
+        if current["status"] == "received":
+            current["status"] = "queued"
+            _write_json_atomic(meta_path, current)
+        record["status"] = current["status"]
+
+
 @router.post("", response_model=IngestResponse)
 async def upload_document(
+    request: Request,
     file: Annotated[UploadFile, File()],
     topic: Annotated[Topic, Form()],
 ):
@@ -123,12 +153,15 @@ async def upload_document(
 
         if meta_path.exists():
             existing = json.loads(meta_path.read_text(encoding="utf-8"))
+            if existing["status"] == "received":  # stored earlier but never queued
+                await _queue(request, existing, meta_path)
             return IngestResponse(**existing, duplicate=True)
 
         os.replace(tmp_path, files_dir / f"{doc_id}{ext}")
 
         record = {
             "doc_id": doc_id,
+            "stored_as": f"{doc_id}{ext}",
             "filename": original_name,
             "topic": topic,
             "size_bytes": size,
@@ -137,6 +170,7 @@ async def upload_document(
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         _write_json_atomic(meta_path, record)
+        await _queue(request, record, meta_path)
     finally:
         tmp_path.unlink(missing_ok=True)
 

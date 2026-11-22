@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager
@@ -9,6 +10,8 @@ from pydantic import BaseModel
 from langchain_deepseek import ChatDeepSeek
 
 from src.config.settings import settings
+from src.messaging.producer import start_producer, stop_producer
+from src.messaging.workers import restore_bm25, start_workers, stop_workers
 from src.memory.conversation_memory import get_checkpointer_context
 from src.agents.agriculture_agent import create_agriculture_agent
 from src.agents.service import invoke_response, stream_response
@@ -45,7 +48,14 @@ async def lifespan(app: FastAPI):
         )
 
         logger.info("Agent ready with Postgres checkpointer.")
-        yield
+        app.state.kafka_producer = await start_producer()
+        await asyncio.to_thread(restore_bm25)
+        workers = start_workers(app)
+        try:
+            yield
+        finally:
+            await stop_workers(workers)
+            await stop_producer(app.state.kafka_producer)
 
     logger.info("Shutdown: checkpointer connection closed.")
 

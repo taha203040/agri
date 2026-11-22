@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     ]
     upload_dir: str = "data/uploads"
     max_upload_mb: int = 20
+    kafka_enabled: bool = True
+    kafka_bootstrap_servers: str = "localhost:9092"
+    kafka_topic_raw: str = "agri.docs.raw"
+    kafka_topic_chunked: str = "agri.docs.chunked"
+    kafka_topic_dlq: str = "agri.docs.dlq"
 
     model_config = SettingsConfigDict(
         env_file=".env",
