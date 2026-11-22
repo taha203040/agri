@@ -1,7 +1,7 @@
 import json
 import logging
 from contextlib import asynccontextmanager
-
+from src.api.ingest import router as ingest_router
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
@@ -69,7 +69,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+app.include_router(ingest_router)
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Schemas

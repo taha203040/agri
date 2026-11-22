@@ -15,6 +15,8 @@ class Settings(BaseSettings):
         "http://localhost:5173",
         "http://localhost:8080",
     ]
+    upload_dir: str = "data/uploads"
+    max_upload_mb: int = 20
 
     model_config = SettingsConfigDict(
         env_file=".env",

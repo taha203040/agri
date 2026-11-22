@@ -93,7 +93,8 @@ The MVP development environment can run the main components locally:
 ```bash 
 # Activate venv
 venv\Scripts\activate
-
+# Activate venv (Linux/macOS)
+source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
@@ -104,7 +105,7 @@ python -m src.ingestion.ingest
 python -m pytest -v
 
 # Run the application
-uvicorn src.api.app:app --reload
+uvicorn src.api.app:app --port 8000
 
 # Run without FastAPI
 python -m src.main
