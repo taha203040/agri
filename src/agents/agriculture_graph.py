@@ -1,14 +1,17 @@
-from typing import Annotated, TypedDict
 import operator
+from functools import lru_cache
+from pathlib import Path
+from typing import Annotated, TypedDict
 
 from langchain_core.messages import AnyMessage, SystemMessage
 from langchain_core.runnables import Runnable
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.types import Overwrite
+
 from src.retrieval.assembler import (
-    soil_hybrid,
     disease_hybrid,
+    soil_hybrid,
     water_hybrid,
     yield_hybrid,
 )
@@ -16,6 +19,7 @@ from src.retrieval.assembler import (
 # ──────────────────────────────────────────────────────────────────────────────
 # State
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 class AgentState(TypedDict):
     messages: Annotated[list[AnyMessage], add_messages]
@@ -37,38 +41,98 @@ def classify_intent(state: AgentState) -> dict:
     # Soil / nutrient signals — check this FIRST, before crop_health,
     # because "leaf yellowing" would otherwise be captured by crop_health.
     soil_keywords = [
-        "nutrient", "deficiency", "deficient",
-        "nitrogen", "phosphorus", "potassium", "magnesium",
-        "iron", "sulfur", "calcium", "zinc", "boron",
-        "interveinal", "chlorosis", "yellowing", "yellow",
-        "soil ph", "ph ", "calcareous", "saline", "sodic",
-        "soil type", "sandy soil", "clay soil", "loam",
-        "fertility", "fertilizer", "manure",
+        "nutrient",
+        "deficiency",
+        "deficient",
+        "nitrogen",
+        "phosphorus",
+        "potassium",
+        "magnesium",
+        "iron",
+        "sulfur",
+        "calcium",
+        "zinc",
+        "boron",
+        "interveinal",
+        "chlorosis",
+        "yellowing",
+        "yellow",
+        "soil ph",
+        "ph ",
+        "calcareous",
+        "saline",
+        "sodic",
+        "soil type",
+        "sandy soil",
+        "clay soil",
+        "loam",
+        "fertility",
+        "fertilizer",
+        "manure",
     ]
     if any(k in q for k in soil_keywords):
         intents.append("soil")
 
     # Water
-    if any(k in q for k in [
-        "water", "irrigation", "moisture", "rain", "evapotranspiration",
-        "etc", "eto", "kc", "mm/day", "mm/season", "m³/ha",
-        "crop coefficient", "drip", "sprinkler", "deficit irrigation",
-    ]):
+    if any(
+        k in q
+        for k in [
+            "water",
+            "irrigation",
+            "moisture",
+            "rain",
+            "evapotranspiration",
+            "etc",
+            "eto",
+            "kc",
+            "mm/day",
+            "mm/season",
+            "m³/ha",
+            "crop coefficient",
+            "drip",
+            "sprinkler",
+            "deficit irrigation",
+        ]
+    ):
         intents.append("water")
 
     # Crop health / disease (narrower than before — no more "leaf")
-    if any(k in q for k in [
-        "disease", "pest", "pathogen", "fungus", "fungal",
-        "blight", "mildew", "rot", "wilt", "mosaic", "virus",
-        "anthracnose", "rust", "spot", "scab", "canker",
-    ]):
+    if any(
+        k in q
+        for k in [
+            "disease",
+            "pest",
+            "pathogen",
+            "fungus",
+            "fungal",
+            "blight",
+            "mildew",
+            "rot",
+            "wilt",
+            "mosaic",
+            "virus",
+            "anthracnose",
+            "rust",
+            "spot",
+            "scab",
+            "canker",
+        ]
+    ):
         intents.append("crop_health")
 
     # Yield
-    if any(k in q for k in [
-        "yield", "harvest", "production", "forecast",
-        "productivity", "harvest index", "yield gap",
-    ]):
+    if any(
+        k in q
+        for k in [
+            "yield",
+            "harvest",
+            "production",
+            "forecast",
+            "productivity",
+            "harvest index",
+            "yield gap",
+        ]
+    ):
         intents.append("yield")
 
     # Fallback: run everything (including soil)
@@ -99,25 +163,29 @@ def water_node(state):
 def yield_node(state):
     docs = yield_hybrid.invoke(state["messages"][-1].content)
     return {"context": [f"[yield] {d.page_content}" for d in docs]}
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Node 5: synthesize answer with LLM
 # ──────────────────────────────────────────────────────────────────────────────
+PROMPT_PATH = Path(__file__).parent / "prompts" / "synthesis.md"
+
+
+@lru_cache(maxsize=1)
+def get_synthesis_prompt() -> str:
+    return PROMPT_PATH.read_text(encoding="utf-8")
+
+
 def synthesize(state: AgentState, config) -> dict:
     model: Runnable = config["configurable"]["model"]
 
-    context_block = "\n\n".join(state.get("context", [])) or "(no context retrieved)"
+    context_block = "\n\n".join(state.get("context", [])) or "(none)"
 
-    system = SystemMessage(
-        content=(
-            "You are an agriculture assistant. "
-            "Use the retrieved context to answer the farmer's question. "
-            "If the context doesn't cover the question, say so.\n\n"
-            f"--- Retrieved context ---\n{context_block}"
-        )
-    )
+    system = SystemMessage(content=get_synthesis_prompt().format(context=context_block))
 
     response = model.invoke([system] + state["messages"])
     return {"messages": [response]}
+
 
 def route_retrievers(state: AgentState) -> list[str]:
     routes = []
@@ -138,6 +206,7 @@ def route_retrievers(state: AgentState) -> list[str]:
         "crop_health_node",
         "yield_node",
     ]
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Build the graph

@@ -22,6 +22,7 @@ from aiokafka import AIOKafkaConsumer
 from fastapi import FastAPI
 from langchain_community.retrievers import BM25Retriever
 from langchain_core.documents import Document
+from langsmith import traceable
 
 from src.config.settings import settings
 from src.ingestion import store
@@ -111,6 +112,7 @@ def restore_bm25() -> None:
 
 # ── Stage 1: chunk ───────────────────────────────────────────────────────────
 
+@traceable(name="chunk_document", run_type="chain")
 def _chunk(msg: dict) -> int:
     path = store.upload_root() / msg["stored_as"]
     handler = HANDLERS.get(path.suffix.lower())
@@ -152,6 +154,7 @@ async def _stage_chunk(app: FastAPI, msg: dict) -> None:
 
 CHROMA_LOCK = threading.Lock()
 
+@traceable(name="index_document", run_type="chain")
 def _index(msg: dict) -> int:
     doc_id, topic = msg["doc_id"], msg["topic"]
     chunks = store.read_chunks(doc_id)

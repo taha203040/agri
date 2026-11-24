@@ -2,6 +2,12 @@ import asyncio
 import json
 import logging
 from contextlib import asynccontextmanager
+from uuid import UUID
+
+from src.monitoring.tracing import setup_tracing
+
+setup_tracing()  # must run before the LangChain / LangGraph imports below
+
 from src.api.ingest import router as ingest_router
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -66,7 +72,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Agriculture RAG API",
-    description="Agricultural question answering using RAG, Chroma, and LangGraph.",
+    description="Agricultural question answering using RAG, Pinecone, and LangGraph.",
     version="2.0.0",
     lifespan=lifespan,
 )
@@ -87,7 +93,7 @@ app.include_router(ingest_router)
 
 class ChatRequest(BaseModel):
     question: str
-    thread_id: str = "default"
+    thread_id: UUID
 
 
 def _sse(payload: dict) -> str:
@@ -108,6 +114,15 @@ async def root():
     }
 
 
+@app.get("/health")
+async def health(req: Request):
+    return {
+        "status": "ok",
+        "agent": hasattr(req.app.state, "agent"),
+        "kafka": req.app.state.kafka_producer is not None,
+    }
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # Non-streaming chat
 # ──────────────────────────────────────────────────────────────────────────────
@@ -122,7 +137,7 @@ async def chat(request: ChatRequest, req: Request):
         response = await invoke_response(
             req.app.state.agent,
             request.question,
-            request.thread_id,
+            str(request.thread_id),
         )
         return {
             "status": "success",
@@ -153,7 +168,7 @@ async def chat_stream(request: ChatRequest, req: Request):
             async for text in stream_response(
                 req.app.state.agent,
                 request.question,
-                request.thread_id,
+                str(request.thread_id),
             ):
                 yield _sse({"type": "token", "content": text})
 

@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     kafka_topic_raw: str = "agri.docs.raw"
     kafka_topic_chunked: str = "agri.docs.chunked"
     kafka_topic_dlq: str = "agri.docs.dlq"
+    pinecone_api_key: str
+    pinecone_index: str = "agri-rag-e5"
+    pinecone_cloud: str = "aws"
+    pinecone_region: str = "us-east-1"
 
     model_config = SettingsConfigDict(
         env_file=".env",
