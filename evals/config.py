@@ -12,4 +12,5 @@ DATASET_NAME = "agri-rag-eval-2"
 JUDGE_MODEL = ChatDeepSeek(
     model="deepseek-chat",
     api_key=settings.deepseek_api_key,
+    extra_body={"thinking": {"type": "disabled"}}  # Key: disable thinking mode
 )

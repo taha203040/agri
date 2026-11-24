@@ -1,9 +1,12 @@
 import operator
+import os
+import re
 from functools import lru_cache
 from pathlib import Path
 from typing import Annotated, TypedDict
 
-from langchain_core.messages import AnyMessage, SystemMessage
+from langchain_core.documents import Document
+from langchain_core.messages import AnyMessage, SystemMessage, AIMessage, BaseMessage
 from langchain_core.runnables import Runnable
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
@@ -145,23 +148,43 @@ def classify_intent(state: AgentState) -> dict:
     return {"intent": ",".join(intents), "context": Overwrite([])}
 
 
+def _norm(s: str) -> str:
+    return re.sub(r"\s+", " ", s).strip().lower()
+
+
+def _clean_docs(docs: list[Document], min_len: int = 150) -> list[Document]:
+    docs = sorted(docs, key=lambda d: len(d.page_content), reverse=True)
+    kept: list[Document] = []
+    for d in docs:
+        t = d.page_content.strip()
+        if not t or len(t) < min_len:
+            continue
+        nt = _norm(t)
+        if any(nt in _norm(o.page_content) for o in kept):
+            continue
+        if any(_norm(o.page_content) in nt for o in kept):
+            continue
+        kept.append(d)
+    return kept
+
+
 def soil_node(state):
-    docs = soil_hybrid.invoke(state["messages"][-1].content)
+    docs = _clean_docs(soil_hybrid.invoke(state["messages"][-1].content))
     return {"context": [f"[soil] {d.page_content}" for d in docs]}
 
 
 def crop_health_node(state):
-    docs = disease_hybrid.invoke(state["messages"][-1].content)
+    docs = _clean_docs(disease_hybrid.invoke(state["messages"][-1].content))
     return {"context": [f"[crop_health] {d.page_content}" for d in docs]}
 
 
 def water_node(state):
-    docs = water_hybrid.invoke(state["messages"][-1].content)
+    docs = _clean_docs(water_hybrid.invoke(state["messages"][-1].content))
     return {"context": [f"[water] {d.page_content}" for d in docs]}
 
 
 def yield_node(state):
-    docs = yield_hybrid.invoke(state["messages"][-1].content)
+    docs = _clean_docs(yield_hybrid.invoke(state["messages"][-1].content))
     return {"context": [f"[yield] {d.page_content}" for d in docs]}
 
 
@@ -176,14 +199,31 @@ def get_synthesis_prompt() -> str:
     return PROMPT_PATH.read_text(encoding="utf-8")
 
 
+DEBUG_REASONING = os.environ.get("DEBUG_REASONING", "0") == "1"
+
+
+def _strip_reasoning(messages: list[BaseMessage]) -> list[BaseMessage]:
+    for m in messages:
+        if hasattr(m, "additional_kwargs"):
+            m.additional_kwargs.pop("reasoning_content", None)
+    return messages
+
+
 def synthesize(state: AgentState, config) -> dict:
     model: Runnable = config["configurable"]["model"]
 
     context_block = "\n\n".join(state.get("context", [])) or "(none)"
-
     system = SystemMessage(content=get_synthesis_prompt().format(context=context_block))
 
-    response = model.invoke([system] + state["messages"])
+    history = _strip_reasoning(state["messages"])
+    response = model.invoke([system] + history)
+
+    reasoning = response.additional_kwargs.pop("reasoning_content", None)
+    if DEBUG_REASONING and reasoning:
+        thread_id = config.get("configurable", {}).get("thread_id", "unknown")
+        with open(f"reasoning_{thread_id}.log", "a", encoding="utf-8") as f:
+            f.write(reasoning + "\n---\n")
+
     return {"messages": [response]}
 
 

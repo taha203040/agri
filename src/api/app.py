@@ -8,20 +8,19 @@ from src.monitoring.tracing import setup_tracing
 
 setup_tracing()  # must run before the LangChain / LangGraph imports below
 
-from src.api.ingest import router as ingest_router
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 from langchain_deepseek import ChatDeepSeek
+from pydantic import BaseModel
 
-from src.config.settings import settings
-from src.messaging.producer import start_producer, stop_producer
-from src.messaging.workers import restore_bm25, start_workers, stop_workers
-from src.memory.conversation_memory import get_checkpointer_context
 from src.agents.agriculture_agent import create_agriculture_agent
 from src.agents.service import invoke_response, stream_response
-
+from src.api.ingest import router as ingest_router
+from src.config.settings import settings
+from src.memory.conversation_memory import get_checkpointer_context
+from src.messaging.producer import start_producer, stop_producer
+from src.messaging.workers import restore_bm25, start_workers, stop_workers
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Logging
@@ -35,6 +34,7 @@ logger = logging.getLogger(__name__)
 # Lifespan: open checkpointer, build agent, close on shutdown
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up: opening Postgres checkpointer...")
@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI):
         model = ChatDeepSeek(
             model=settings.model_name,
             api_key=settings.deepseek_api_key,
+            extra_body={"thinking": {"type": "disabled"}},  # Key: disable thinking mode
         )
 
         app.state.agent = create_agriculture_agent(
@@ -91,6 +92,7 @@ app.include_router(ingest_router)
 # Schemas
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 class ChatRequest(BaseModel):
     question: str
     thread_id: UUID
@@ -104,6 +106,7 @@ def _sse(payload: dict) -> str:
 # ──────────────────────────────────────────────────────────────────────────────
 # Health check
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @app.get("/")
 async def root():
@@ -126,6 +129,7 @@ async def health(req: Request):
 # ──────────────────────────────────────────────────────────────────────────────
 # Non-streaming chat
 # ──────────────────────────────────────────────────────────────────────────────
+
 
 @app.post("/chat")
 async def chat(request: ChatRequest, req: Request):
@@ -156,11 +160,13 @@ async def chat(request: ChatRequest, req: Request):
 # Streaming chat
 # ──────────────────────────────────────────────────────────────────────────────
 
+
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest, req: Request):
     """
     Stream the agent response using Server-Sent Events (SSE).
     """
+
     async def generate():
         try:
             yield _sse({"type": "status", "content": "Thinking..."})

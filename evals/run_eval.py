@@ -80,6 +80,7 @@ async def main():
         model = ChatDeepSeek(
             model=settings.model_name,
             api_key=settings.deepseek_api_key,
+            extra_body={"thinking": {"type": "disabled"}}  # Key: disable thinking mode
         )
         agent = create_agriculture_agent(model=model, checkpointer=checkpointer)
 
