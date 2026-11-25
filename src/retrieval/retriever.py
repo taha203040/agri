@@ -1,22 +1,20 @@
 from langchain_core.tools import create_retriever_tool
 
+from src.config.settings import settings
 from src.vectorstore.vector import (
     soil_vectorstore,
     disease_vectorstore,
-        water_vectorstore,       # add these
-    yield_vectorstore,       # add these
+    water_vectorstore,
+    yield_vectorstore,
 )
 
-water_retriever = water_vectorstore.as_retriever(search_kwargs={"k": 6})
-crop_health_retriever = disease_vectorstore.as_retriever(search_kwargs={"k": 6})
-yield_retriever = yield_vectorstore.as_retriever(search_kwargs={"k": 6})
-soil_retriever = soil_vectorstore.as_retriever(
-    search_kwargs={"k": 6}
-)
+_K = {"k": settings.retrieval_k}
 
-disease_retriever = disease_vectorstore.as_retriever(
-    search_kwargs={"k": 6}
-)
+water_retriever = water_vectorstore.as_retriever(search_kwargs=_K)
+crop_health_retriever = disease_vectorstore.as_retriever(search_kwargs=_K)
+yield_retriever = yield_vectorstore.as_retriever(search_kwargs=_K)
+soil_retriever = soil_vectorstore.as_retriever(search_kwargs=_K)
+disease_retriever = disease_vectorstore.as_retriever(search_kwargs=_K)
 
 
 soil_tool = create_retriever_tool(

@@ -36,107 +36,43 @@ class AgentState(TypedDict):
 # ──────────────────────────────────────────────────────────────────────────────
 # Node 1: classify intent
 # ──────────────────────────────────────────────────────────────────────────────
+_INTENT_PATTERNS: dict[str, re.Pattern] = {
+    name: re.compile("|".join(patterns))
+    for name, patterns in {
+        # Soil / nutrient signals — checked FIRST so "leaf yellowing" isn't
+        # captured by crop_health.
+        "soil": [
+            r"\bnutrient", r"\bdeficien", r"\bnitrogen", r"\bphosphorus",
+            r"\bpotassium", r"\bmagnesium", r"\biron\b", r"\bsulph?ur",
+            r"\bcalcium", r"\bzinc", r"\bboron", r"\binterveinal",
+            r"\bchlorosis", r"\byellow", r"\bph\b", r"\bcalcareous",
+            r"\bsaline", r"\bsodic", r"\bsoil type", r"\bsandy soil",
+            r"\bclay soil", r"\bloam", r"\bfertili", r"\bmanure",
+        ],
+        "water": [
+            r"\bwater(?!melon)", r"\birrigat", r"\bmoisture", r"\brain",
+            r"\bevapotranspiration", r"\betc\b(?!\.)", r"\beto\b", r"\bkc\b",
+            r"\bmm/day", r"\bmm/season", r"m³/ha", r"\bcrop coefficient",
+            r"\bdrip\b", r"\bsprinkler",
+        ],
+        "crop_health": [
+            r"\bdisease", r"\bpest", r"\bpathogen", r"\bfung(?:us|al|i|icide)",
+            r"\bblight", r"\bmildew", r"\brot(?:s|ting|ted)?\b", r"\bwilt",
+            r"\bmosaic", r"\bvirus", r"\banthracnose", r"\brust", r"\bspot",
+            r"\bscab", r"\bcanker",
+        ],
+        "yield": [
+            r"\byield", r"\bharvest", r"\bproduction", r"\bforecast",
+            r"\bproductivity",
+        ],
+    }.items()
+}
+
+
 def classify_intent(state: AgentState) -> dict:
     q = state["messages"][-1].content.lower()
 
-    intents = []
-
-    # Soil / nutrient signals — check this FIRST, before crop_health,
-    # because "leaf yellowing" would otherwise be captured by crop_health.
-    soil_keywords = [
-        "nutrient",
-        "deficiency",
-        "deficient",
-        "nitrogen",
-        "phosphorus",
-        "potassium",
-        "magnesium",
-        "iron",
-        "sulfur",
-        "calcium",
-        "zinc",
-        "boron",
-        "interveinal",
-        "chlorosis",
-        "yellowing",
-        "yellow",
-        "soil ph",
-        "ph ",
-        "calcareous",
-        "saline",
-        "sodic",
-        "soil type",
-        "sandy soil",
-        "clay soil",
-        "loam",
-        "fertility",
-        "fertilizer",
-        "manure",
-    ]
-    if any(k in q for k in soil_keywords):
-        intents.append("soil")
-
-    # Water
-    if any(
-        k in q
-        for k in [
-            "water",
-            "irrigation",
-            "moisture",
-            "rain",
-            "evapotranspiration",
-            "etc",
-            "eto",
-            "kc",
-            "mm/day",
-            "mm/season",
-            "m³/ha",
-            "crop coefficient",
-            "drip",
-            "sprinkler",
-            "deficit irrigation",
-        ]
-    ):
-        intents.append("water")
-
-    # Crop health / disease (narrower than before — no more "leaf")
-    if any(
-        k in q
-        for k in [
-            "disease",
-            "pest",
-            "pathogen",
-            "fungus",
-            "fungal",
-            "blight",
-            "mildew",
-            "rot",
-            "wilt",
-            "mosaic",
-            "virus",
-            "anthracnose",
-            "rust",
-            "spot",
-            "scab",
-            "canker",
-        ]
-    ):
-        intents.append("crop_health")
-
-    # Yield
-    if any(
-        k in q
-        for k in [
-            "yield",
-            "harvest",
-            "production",
-            "forecast",
-            "productivity",
-            "harvest index",
-            "yield gap",
-        ]
-    ):
-        intents.append("yield")
+    intents = [name for name, rx in _INTENT_PATTERNS.items() if rx.search(q)]
 
     # Fallback: run everything (including soil)
     if not intents:
@@ -146,7 +82,6 @@ def classify_intent(state: AgentState) -> dict:
     # would otherwise keep appending every turn's chunks to the same thread,
     # growing the stored state and feeding stale chunks into later answers.
     return {"intent": ",".join(intents), "context": Overwrite([])}
-
 
 def _norm(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip().lower()

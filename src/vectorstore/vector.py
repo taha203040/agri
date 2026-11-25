@@ -71,6 +71,9 @@
 #
 # =====================================================================
 
+from functools import lru_cache
+
+from langchain_core.embeddings import Embeddings
 from langchain_pinecone import PineconeEmbeddings, PineconeVectorStore
 from pinecone import Pinecone, ServerlessSpec
 
@@ -80,10 +83,28 @@ from src.config.settings import settings
 EMBEDDING_MODEL = "multilingual-e5-large"
 EMBEDDING_DIM = 1024  # must match the model
 
-embeddings = PineconeEmbeddings(
+_base_embeddings = PineconeEmbeddings(
     model=EMBEDDING_MODEL,
     pinecone_api_key=settings.pinecone_api_key,
 )
+
+
+@lru_cache(maxsize=512)
+def _embed_query(text: str) -> tuple[float, ...]:
+    return tuple(_base_embeddings.embed_query(text))
+
+
+class CachedEmbeddings(Embeddings):
+    """Caches query embeddings only. Documents are embedded once at ingest."""
+
+    def embed_documents(self, texts: list[str]) -> list[list[float]]:
+        return _base_embeddings.embed_documents(texts)
+
+    def embed_query(self, text: str) -> list[float]:
+        return list(_embed_query(text))
+
+
+embeddings = CachedEmbeddings()
 
 _pc = Pinecone(api_key=settings.pinecone_api_key)
 

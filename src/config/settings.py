@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     pinecone_index: str = "agri-rag-e5"
     pinecone_cloud: str = "aws"
     pinecone_region: str = "us-east-1"
+    retrieval_k: int = 4
 
     model_config = SettingsConfigDict(
         env_file=".env",
