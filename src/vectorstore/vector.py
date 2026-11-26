@@ -1,114 +1,67 @@
-# =====================================================================
-# OLD CODE (Chroma-based vectorstores) — commented out in favor of
-# Pinecone. Kept for reference / rollback.
-# =====================================================================
-#
-# from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
-# from langchain_chroma import Chroma
-# from langchain_core.embeddings import Embeddings
-# # from langchain_huggingface import HuggingFaceEmbeddings
-#
-#
-# # embeddings = HuggingFaceEmbeddings(
-# #     model_name="BAAI/bge-small-en-v1.5",
-# # )
-#
-#
-# class ChromaDefaultEmbeddings(Embeddings):
-#     """
-#     LangChain `Embeddings` adapter around Chroma's built-in default embedder
-#     (all-MiniLM-L6-v2 via ONNX).
-#
-#     Why this exists: `langchain-chroma` >= 1.x always opens collections with
-#     `embedding_function=None`, and `chromadb` >= 1.x then refuses to embed
-#     text ("You must provide an embedding function"). Passing this adapter keeps
-#     the *same* embedding model these stores used before, so existing
-#     collections stay valid and nothing needs to be re-ingested.
-#     """
-#
-#     def __init__(self) -> None:
-#         self._ef = DefaultEmbeddingFunction()
-#
-#     def _embed(self, texts: list[str]) -> list[list[float]]:
-#         return [[float(x) for x in vec] for vec in self._ef(list(texts))]
-#
-#     def embed_documents(self, texts: list[str]) -> list[list[float]]:
-#         return self._embed(texts)
-#
-#     def embed_query(self, text: str) -> list[float]:
-#         return self._embed([text])[0]
-#
-#
-# embeddings = ChromaDefaultEmbeddings()
-#
-#
-# soil_vectorstore = Chroma(
-#     collection_name="soil_collection",
-#     persist_directory="./chroma_soil_db",
-#     embedding_function=embeddings,
-# )
-#
-#
-# disease_vectorstore = Chroma(
-#     collection_name="disease_collection",
-#     persist_directory="./chroma_disease_db",
-#     embedding_function=embeddings,
-# )
-#
-#
-# water_vectorstore = Chroma(
-#     collection_name="water_collection",
-#     persist_directory="./chroma_water_db",
-#     embedding_function=embeddings,
-# )
-#
-#
-# yield_vectorstore = Chroma(
-#     collection_name="yield_collection",
-#     persist_directory="./chroma_yield_db",
-#     embedding_function=embeddings,
-# )
-#
-# =====================================================================
-
+import time
 from functools import lru_cache
-
 from langchain_core.embeddings import Embeddings
-from langchain_pinecone import PineconeEmbeddings, PineconeVectorStore
+from langchain_pinecone import PineconeVectorStore
 from pinecone import Pinecone, ServerlessSpec
 
 from src.config.settings import settings
 
-# Hosted embedding model (multilingual: Arabic + English)
 EMBEDDING_MODEL = "multilingual-e5-large"
-EMBEDDING_DIM = 1024  # must match the model
+EMBEDDING_DIM = 1024
 
-_base_embeddings = PineconeEmbeddings(
-    model=EMBEDDING_MODEL,
-    pinecone_api_key=settings.pinecone_api_key,
-)
-
+# Initialize Pinecone client directly
+_pc = Pinecone(api_key=settings.pinecone_api_key)
 
 @lru_cache(maxsize=512)
 def _embed_query(text: str) -> tuple[float, ...]:
-    return tuple(_base_embeddings.embed_query(text))
+    # Print to show that we are making the network call (cache miss)
+    print(f"\n⏳ [EMBEDDING] Cache MISS. Sending query to Pinecone API: '{text[:30]}...'")
+    start_time = time.time()
 
+    try:
+        response = _pc.inference.embed(
+            model=EMBEDDING_MODEL,
+            inputs=[text],
+            parameters={"input_type": "query", "truncate": "END"}
+        )
 
-class CachedEmbeddings(Embeddings):
-    """Caches query embeddings only. Documents are embedded once at ingest."""
+        end_time = time.time()
+        print(f"✅ [EMBEDDING] Success! Took {end_time - start_time:.2f} seconds.")
+        return tuple(response.data[0].values)
+
+    except Exception as e:
+        print(f"❌ [EMBEDDING] FAILED! Error: {e}")
+        raise e
+
+class CustomCachedEmbeddings(Embeddings):
+    """Uses Pinecone's raw SDK for exact control over input_type."""
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        return _base_embeddings.embed_documents(texts)
+        print(f"\n⏳ [EMBEDDING] Embedding {len(texts)} documents for ingestion...")
+        start_time = time.time()
+
+        response = _pc.inference.embed(
+            model=EMBEDDING_MODEL,
+            inputs=texts,
+            parameters={"input_type": "passage", "truncate": "END"}
+        )
+
+        end_time = time.time()
+        print(f"✅ [EMBEDDING] Documents embedded! Took {end_time - start_time:.2f} seconds.")
+        return [item.values for item in response.data]
 
     def embed_query(self, text: str) -> list[float]:
+        # If it's a cache hit, we print a message
+        if _embed_query.cache_info().hits > 0:
+            print(f"⚡ [EMBEDDING] Cache HIT. Retrieved vector for '{text[:30]}...' from memory instantly.")
+
         return list(_embed_query(text))
 
+embeddings = CustomCachedEmbeddings()
 
-embeddings = CachedEmbeddings()
-
-_pc = Pinecone(api_key=settings.pinecone_api_key)
-
+# --- Database Setup ---
 if not _pc.has_index(settings.pinecone_index):
+    print("Creating new Pinecone index...")
     _pc.create_index(
         name=settings.pinecone_index,
         dimension=EMBEDDING_DIM,
@@ -121,7 +74,6 @@ if not _pc.has_index(settings.pinecone_index):
 
 _index = _pc.Index(settings.pinecone_index)
 
-
 def _store(namespace: str) -> PineconeVectorStore:
     return PineconeVectorStore(
         index=_index,
@@ -129,8 +81,7 @@ def _store(namespace: str) -> PineconeVectorStore:
         namespace=namespace,
     )
 
-
 soil_vectorstore = _store("soil")
-disease_vectorstore = _store("disease")  # crop_health shares this one
+disease_vectorstore = _store("disease")
 water_vectorstore = _store("water")
 yield_vectorstore = _store("yield")
